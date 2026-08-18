@@ -32,7 +32,7 @@ function ClubBrand({ clubName, clubLogoUrl }: { clubName?: string; clubLogoUrl?:
           <AvatarFallback>{getInitials(clubName)}</AvatarFallback>
         </Avatar>
       ) : (
-        <span className="text-lg">⚽</span>
+        <span className="text-lg"> ⚽ </span>
       )}
       <span className="truncate text-sm font-semibold text-foreground">
         {clubName ?? "Pizarra Deportiva"}
