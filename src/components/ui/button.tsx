@@ -17,10 +17,6 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        success:
-          "bg-primary text-primary-foreground hover:bg-primary/80",
-        tertiary:
-          "text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -49,7 +45,7 @@ function Button({
   variant = "default",
   size = "default",
   ...props
-}: ButtonProps) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
@@ -58,7 +54,5 @@ function Button({
     />
   )
 }
-
-export type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>
 
 export { Button, buttonVariants }

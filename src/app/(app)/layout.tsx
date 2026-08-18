@@ -30,9 +30,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const brandVars = getBrandColorVars(adminOf?.clubs?.primary_color);
 
   return (
-    <div className="flex min-h-screen w-full" style={brandVars}>
+    <div className="flex min-h-screen w-full flex-col md:flex-row" style={brandVars}>
       <AppSidebar clubName={clubName} clubLogoUrl={clubLogoUrl} userName={profile?.full_name} />
-      <div className="flex w-full flex-col items-center gap-6 overflow-y-auto p-8">
+      <div className="flex w-full flex-col items-center gap-6 overflow-y-auto p-4 md:p-8">
         <div className="w-full max-w-5xl">{children}</div>
       </div>
     </div>
