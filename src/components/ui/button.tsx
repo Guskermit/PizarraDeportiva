@@ -49,12 +49,21 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Cuando `render` reemplaza el elemento por uno que no es un <button> nativo
+  // (p. ej. <Link> que renderiza un <a>), Base UI exige `nativeButton={false}`.
+  const isNonNativeRender =
+    render != null && typeof render !== "function" && render.type !== "button";
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={nativeButton ?? !isNonNativeRender}
+      render={render}
       {...props}
     />
   )

@@ -2,17 +2,30 @@
 
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ActionForm } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { sharePlay } from "@/lib/actions/plays";
+import type { ClubCoach } from "@/lib/supabase/queries";
 
-export function ShareForm({ playId }: { playId: string }) {
+export function ShareForm({
+  playId,
+  coaches,
+}: {
+  playId: string;
+  coaches: ClubCoach[];
+}) {
   const [isSharing, setIsSharing] = useState(false);
   const [canCopy, setCanCopy] = useState(false);
-  const emailId = useId();
+  const [selected, setSelected] = useState<string[]>([]);
   const canCopyId = useId();
 
   if (!isSharing) {
@@ -23,13 +36,46 @@ export function ShareForm({ playId }: { playId: string }) {
     );
   }
 
+  const selectedNames = selected
+    .map((id) => coaches.find((c) => c.id === id)?.full_name)
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <ActionForm action={sharePlay.bind(null, playId)}>
       <div className="grid gap-2">
         <input type="hidden" name="targetType" value="profile" />
+        {selected.map((id) => (
+          <input key={id} type="hidden" name="targetValue" value={id} />
+        ))}
         <div className="grid gap-1.5">
-          <Label htmlFor={emailId}>Compartir con (email)</Label>
-          <Input id={emailId} name="targetValue" type="email" />
+          <Label>Compartir con entrenadores del club</Label>
+          <Select
+            multiple
+            value={selected}
+            onValueChange={(v) => setSelected(v as string[])}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                {() =>
+                  selectedNames ||
+                  "Selecciona uno o varios entrenadores..."
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {coaches.map((coach) => (
+                <SelectItem key={coach.id} value={coach.id}>
+                  {coach.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {coaches.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No hay otros entrenadores en tu club.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <input type="hidden" name="canCopy" value={canCopy ? "on" : ""} />

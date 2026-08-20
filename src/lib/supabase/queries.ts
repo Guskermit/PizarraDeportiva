@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -52,4 +53,36 @@ export async function getMyTeams(): Promise<MyCoachedTeam[]> {
     .eq("profile_id", user.id);
 
   return (data ?? []) as unknown as MyCoachedTeam[];
+}
+
+export type ClubCoach = {
+  id: string;
+  full_name: string;
+  email: string;
+};
+
+// Lista los entrenadores de un club: admins del club + entrenadores de sus equipos.
+// Usa el cliente admin (service role) porque las políticas RLS actuales solo permiten
+// a los admins del club leer la lista completa de entrenadores.
+export async function getClubCoaches(clubId: string): Promise<ClubCoach[]> {
+  const supabase = createAdminClient();
+
+  const { data: admins } = await supabase
+    .from("club_admins")
+    .select("profile_id, profiles(id, full_name, email)")
+    .eq("club_id", clubId);
+
+  const { data: coaches } = await supabase
+    .from("team_coaches")
+    .select("profile_id, profiles(id, full_name, email), teams!inner(club_id)")
+    .eq("teams.club_id", clubId);
+
+  const map = new Map<string, ClubCoach>();
+  for (const row of (admins ?? []) as unknown as { profiles: ClubCoach | null }[]) {
+    if (row.profiles) map.set(row.profiles.id, row.profiles);
+  }
+  for (const row of (coaches ?? []) as unknown as { profiles: ClubCoach | null }[]) {
+    if (row.profiles) map.set(row.profiles.id, row.profiles);
+  }
+  return [...map.values()];
 }

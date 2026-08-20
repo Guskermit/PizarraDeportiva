@@ -9,6 +9,7 @@ import type {
   TeamFormation,
 } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { getClubCoaches } from "@/lib/supabase/queries";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -192,7 +193,10 @@ export async function sharePlay(
   formData: FormData,
 ): Promise<ActionState> {
   const targetType = String(formData.get("targetType") ?? "");
-  const targetValue = String(formData.get("targetValue") ?? "").trim();
+  const targetValues = formData
+    .getAll("targetValue")
+    .map((v) => String(v))
+    .filter(Boolean);
   const canCopy = formData.get("canCopy") === "on";
 
   const supabase = await createClient();
@@ -202,25 +206,42 @@ export async function sharePlay(
   if (!user) return { error: "Sesión no válida." };
 
   if (targetType === "profile") {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", targetValue.toLowerCase())
-      .maybeSingle();
-    if (!profile) return { error: "No existe ninguna cuenta con ese email." };
+    if (targetValues.length === 0) {
+      return { error: "Selecciona al menos un entrenador." };
+    }
 
-    const { error } = await supabase.from("play_shares").insert({
-      play_id: playId,
-      shared_by: user.id,
-      shared_with_profile_id: profile.id,
-      can_copy: canCopy,
-    });
+    // Verifica que la jugada existe y que el usuario es su propietario.
+    const { data: play } = await supabase
+      .from("plays")
+      .select("id, club_id, owner_coach_id")
+      .eq("id", playId)
+      .single();
+    if (!play || play.owner_coach_id !== user.id) {
+      return { error: "No puedes compartir esta jugada." };
+    }
+
+    // Solo se puede compartir con entrenadores del club de la jugada.
+    const validCoaches = await getClubCoaches(play.club_id);
+    const validIds = new Set(validCoaches.map((c) => c.id));
+    const validTargets = targetValues.filter((id) => validIds.has(id));
+    if (validTargets.length === 0) {
+      return { error: "Selecciona al menos un entrenador del club." };
+    }
+
+    const { error } = await supabase.from("play_shares").insert(
+      validTargets.map((profileId) => ({
+        play_id: playId,
+        shared_by: user.id,
+        shared_with_profile_id: profileId,
+        can_copy: canCopy,
+      })),
+    );
     if (error) return { error: error.message };
   } else {
     const { error } = await supabase.from("play_shares").insert({
       play_id: playId,
       shared_by: user.id,
-      shared_with_team_id: targetValue,
+      shared_with_team_id: targetValues[0],
       can_copy: canCopy,
     });
     if (error) return { error: error.message };

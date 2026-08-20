@@ -9,6 +9,7 @@ import { FlatTable } from "@/components/FlatTable";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials, cn } from "@/lib/utils";
+import { getClubCoaches, type ClubCoach } from "@/lib/supabase/queries";
 
 function StatusPill({ status }: { status: string }) {
   const ready = status === "ready";
@@ -45,6 +46,16 @@ export default async function PlaysPage() {
 
   const myPlays = (plays ?? []).filter((p) => p.owner_coach_id === user!.id);
   const sharedPlays = (plays ?? []).filter((p) => p.owner_coach_id !== user!.id);
+
+  // Entrenadores del club por jugada, para el formulario de compartir.
+  const myClubIds = [...new Set(myPlays.map((p) => p.club_id))];
+  const coachesByClub: Record<string, ClubCoach[]> = {};
+  await Promise.all(
+    myClubIds.map(async (clubId) => {
+      const coaches = await getClubCoaches(clubId);
+      coachesByClub[clubId] = coaches.filter((c) => c.id !== user!.id);
+    }),
+  );
 
   return (
     <div className="grid w-full gap-8">
@@ -91,7 +102,7 @@ export default async function PlaysPage() {
                 <Button variant="tertiary" size="sm" render={<Link href={`/plays/${play.id}/view`} />}>
                   Ver
                 </Button>
-                <ShareForm playId={play.id} />
+                <ShareForm playId={play.id} coaches={coachesByClub[play.club_id] ?? []} />
               </div>,
             ],
           }))}
