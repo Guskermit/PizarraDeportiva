@@ -12,10 +12,7 @@ export type PlayType =
   | "defensa"
   | "ataque_posicional";
 
-export type TeamFormation =
-  | "portero_4_jugadores"
-  | "5_jugadores"
-  | "portero_3_jugadores";
+export type TeamFormation = "portero_4_jugadores" | "5_jugadores" | "portero_3_jugadores";
 
 export type PlayStatus = "draft" | "ready";
 
@@ -178,6 +175,22 @@ export interface Database {
           order_index: number;
         };
         Update: Partial<Database["public"]["Tables"]["play_sequences"]["Row"]>;
+        Relationships: [];
+      };
+      play_sequence_notes: {
+        Row: {
+          id: string;
+          sequence_id: string;
+          author_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["play_sequence_notes"]["Row"]> & {
+          sequence_id: string;
+          author_id: string;
+          content: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["play_sequence_notes"]["Row"]>;
         Relationships: [];
       };
       play_shares: {

@@ -1,14 +1,32 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import { TacticalBoard } from "@/components/board/TacticalBoard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  addSequenceNote,
+  deleteLastSequence,
+  deleteSequenceNote,
+  finalizePlay,
+  reopenPlay,
+  saveInitialPositions,
+  saveSequence,
+} from "@/lib/actions/plays";
 import { clonePositions } from "@/lib/futsal/formations";
-import { saveInitialPositions, saveSequence, finalizePlay, reopenPlay, deleteLastSequence } from "@/lib/actions/plays";
 import type { BoardMove, BoardPoint, BoardPositions } from "@/lib/supabase/database.types";
+import { Loader2 } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+
+export interface SequenceNote {
+  id: string;
+  sequence_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  author_name?: string;
+}
 
 // A player/ball is considered "in possession" of the ball when within this world-unit distance.
 const POSSESSION_THRESHOLD = 11;
@@ -26,6 +44,7 @@ interface Sequence {
   order_index: number;
   positions: BoardPositions;
   moves: BoardMove[];
+  notes?: SequenceNote[];
 }
 
 export function TacticalEditor({
@@ -35,6 +54,7 @@ export function TacticalEditor({
   homeColor,
   awayColor,
   status,
+  currentUserId,
 }: {
   playId: string;
   initialPositions: BoardPositions;
@@ -42,6 +62,7 @@ export function TacticalEditor({
   homeColor: string;
   awayColor: string;
   status: "draft" | "ready";
+  currentUserId?: string | null;
 }) {
   const [locked, setLocked] = useState(savedSequences.length > 0);
   const [initialPos, setInitialPos] = useState(initialPositions);
@@ -50,13 +71,18 @@ export function TacticalEditor({
   const [error, setError] = useState<string | null>(null);
   const [playStatus, setPlayStatus] = useState(status);
   const [isPending, startTransition] = useTransition();
+  const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const baseline = useMemo(
     () => (sequences.length > 0 ? sequences[sequences.length - 1].positions : initialPos),
     [sequences, initialPos],
   );
 
-  const [workingPositions, setWorkingPositions] = useState<BoardPositions>(clonePositions(baseline));
+  const [workingPositions, setWorkingPositions] = useState<BoardPositions>(
+    clonePositions(baseline),
+  );
 
   function applyPendingMove(move: BoardMove) {
     setPendingMoves((prev) => {
@@ -77,7 +103,8 @@ export function TacticalEditor({
     setWorkingPositions((prevState) => {
       const next = clonePositions(prevState);
       const arr = team === "home" ? next.home : next.away;
-      const target = arr.find((p) => p.id === playerId)!;
+      const target = arr.find((p) => p.id === playerId);
+      if (!target) return prevState;
       target.x = pos.x;
       target.y = pos.y;
       if (hasBall) {
@@ -131,7 +158,13 @@ export function TacticalEditor({
       }
       setSequences((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), order_index: orderIndex, positions: clonePositions(workingPositions), moves: pendingMoves },
+        {
+          id: result.sequenceId ?? crypto.randomUUID(),
+          order_index: orderIndex,
+          positions: clonePositions(workingPositions),
+          moves: pendingMoves,
+          notes: [],
+        },
       ]);
       setPendingMoves([]);
     });
@@ -145,7 +178,8 @@ export function TacticalEditor({
       await deleteLastSequence(last.id, playId);
       const remaining = sequences.slice(0, -1);
       setSequences(remaining);
-      const newBaseline = remaining.length > 0 ? remaining[remaining.length - 1].positions : initialPos;
+      const newBaseline =
+        remaining.length > 0 ? remaining[remaining.length - 1].positions : initialPos;
       setWorkingPositions(clonePositions(newBaseline));
       setPendingMoves([]);
     });
@@ -176,6 +210,55 @@ export function TacticalEditor({
       }
       setPlayStatus("draft");
     });
+  }
+
+  async function handleSaveNote(sequenceId: string) {
+    const content = (noteDraft[sequenceId] ?? "").trim();
+    if (!content) {
+      setNoteError("Escribe un comentario antes de guardarlo.");
+      return;
+    }
+    setNoteError(null);
+    setNoteBusy(true);
+    const formData = new FormData();
+    formData.set("content", content);
+    const result = await addSequenceNote(sequenceId, playId, {}, formData);
+    setNoteBusy(false);
+    if (result?.error) {
+      setNoteError(result.error);
+      return;
+    }
+    setSequences((prev) =>
+      prev.map((s) =>
+        s.id === sequenceId
+          ? {
+              ...s,
+              notes: [
+                ...(s.notes ?? []),
+                {
+                  id: result.noteId ?? crypto.randomUUID(),
+                  sequence_id: sequenceId,
+                  author_id: currentUserId ?? "",
+                  content,
+                  created_at: new Date().toISOString(),
+                },
+              ],
+            }
+          : s,
+      ),
+    );
+    setNoteDraft((prev) => ({ ...prev, [sequenceId]: "" }));
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    setNoteError(null);
+    await deleteSequenceNote(noteId, playId);
+    setSequences((prev) =>
+      prev.map((s) => ({
+        ...s,
+        notes: (s.notes ?? []).filter((n) => n.id !== noteId),
+      })),
+    );
   }
 
   return (
@@ -241,23 +324,75 @@ export function TacticalEditor({
       )}
 
       {sequences.length > 0 && (
-        <div className="grid gap-2">
+        <div className="grid gap-3">
           <h3 className="text-sm font-semibold">Secuencias guardadas</h3>
-          <div className="flex flex-wrap gap-2">
-            {sequences.map((s) => (
-              <Badge key={s.id} variant="secondary">
-                Secuencia {s.order_index + 1}
-              </Badge>
-            ))}
+          <div className="grid gap-3">
+            {sequences.map((s) => {
+              const notes = (s.notes ?? []) as SequenceNote[];
+              return (
+                <div key={s.id} className="grid gap-2 rounded-lg border p-3">
+                  <Badge variant="secondary" className="w-fit">
+                    Secuencia {s.order_index + 1}
+                  </Badge>
+                  <div className="grid gap-2">
+                    {notes.length > 0 && (
+                      <ul className="grid gap-1.5">
+                        {notes.map((note) => (
+                          <li
+                            key={note.id}
+                            className="flex items-start justify-between gap-2 rounded-md bg-muted px-2.5 py-1.5 text-sm"
+                          >
+                            <span className="grid gap-0.5">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {note.author_name ?? "Entrenador"}
+                              </span>
+                              <span>{note.content}</span>
+                            </span>
+                            {note.author_id === currentUserId && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNote(note.id)}
+                                className="text-xs text-muted-foreground hover:text-destructive"
+                              >
+                                Eliminar
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex gap-2">
+                      <Input
+                        value={noteDraft[s.id] ?? ""}
+                        onChange={(e) =>
+                          setNoteDraft((prev) => ({ ...prev, [s.id]: e.target.value }))
+                        }
+                        placeholder="Añade un comentario para esta secuencia…"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => handleSaveNote(s.id)}
+                        disabled={noteBusy}
+                      >
+                        {noteBusy && <Loader2 className="animate-spin" />}
+                        Añadir
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
+          {noteError && <p className="text-sm text-destructive">{noteError}</p>}
         </div>
       )}
 
       {locked && (
         <p className="text-sm text-muted-foreground">
           Arrastra jugadores o el balón para dibujar los movimientos de esta secuencia. Las líneas
-          discontinuas indican desplazamiento sin balón; las líneas continuas indican que el
-          jugador se desplaza con el balón. Arrastra el punto central de una línea para curvarla.
+          discontinuas indican desplazamiento sin balón; las líneas continuas indican que el jugador
+          se desplaza con el balón. Arrastra el punto central de una línea para curvarla.
         </p>
       )}
     </div>

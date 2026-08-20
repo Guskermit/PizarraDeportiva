@@ -1,8 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import type { ActionState } from "@/components/forms/ActionForm";
 import { buildInitialPositions } from "@/lib/futsal/formations";
 import type {
   BoardMove,
@@ -10,7 +8,9 @@ import type {
   PlayType,
   TeamFormation,
 } from "@/lib/supabase/database.types";
-import type { ActionState } from "@/components/forms/ActionForm";
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function createPlay(
   _prevState: ActionState,
@@ -113,12 +113,14 @@ export async function saveSequence(
   moves: BoardMove[],
 ) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("play_sequences")
-    .insert({ play_id: playId, order_index: orderIndex, positions, moves });
+    .insert({ play_id: playId, order_index: orderIndex, positions, moves })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
   revalidatePath(`/plays/${playId}/edit`);
-  return { success: true };
+  return { success: true, sequenceId: data?.id };
 }
 
 export async function finalizePlay(playId: string) {
@@ -140,6 +142,46 @@ export async function deleteLastSequence(sequenceId: string, playId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("play_sequences").delete().eq("id", sequenceId);
   if (error) return { error: error.message };
+  revalidatePath(`/plays/${playId}/edit`);
+  return { success: true };
+}
+
+export async function addSequenceNote(
+  sequenceId: string,
+  playId: string,
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState & { noteId?: string }> {
+  const content = String(formData.get("content") ?? "").trim();
+  if (!content) return { error: "Escribe un comentario antes de publicarlo." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data, error } = await supabase
+    .from("play_sequence_notes")
+    .insert({
+      sequence_id: sequenceId,
+      author_id: user.id,
+      content,
+    })
+    .select("id")
+    .single();
+  if (error) return { error: error.message };
+
+  revalidatePath(`/plays/${playId}/view`);
+  revalidatePath(`/plays/${playId}/edit`);
+  return { success: true, noteId: data?.id };
+}
+
+export async function deleteSequenceNote(noteId: string, playId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("play_sequence_notes").delete().eq("id", noteId);
+  if (error) return { error: error.message };
+  revalidatePath(`/plays/${playId}/view`);
   revalidatePath(`/plays/${playId}/edit`);
   return { success: true };
 }

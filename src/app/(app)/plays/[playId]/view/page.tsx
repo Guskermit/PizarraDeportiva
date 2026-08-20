@@ -1,7 +1,25 @@
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { PlayViewerClient } from "@/components/board/PlayViewerLoader";
-import { PLAY_TYPE_LABELS, FORMATION_LABELS } from "@/lib/futsal/formations";
+import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
+import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
+import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+
+interface ViewNote {
+  id: string;
+  sequence_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  profiles?: { full_name: string } | null;
+}
+
+interface ViewSequence {
+  id: string;
+  order_index: number;
+  positions: BoardPositions;
+  moves: BoardMove[];
+  notes?: ViewNote[];
+}
 
 export default async function ViewPlayPage({
   params,
@@ -16,9 +34,27 @@ export default async function ViewPlayPage({
 
   const { data: sequences } = await supabase
     .from("play_sequences")
-    .select("id, order_index, positions, moves")
+    .select(
+      "id, order_index, positions, moves, notes:play_sequence_notes(id, sequence_id, author_id, content, created_at, profiles:author_id(full_name))",
+    )
     .eq("play_id", playId)
     .order("order_index", { ascending: true });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const mappedSequences = ((sequences ?? []) as unknown as ViewSequence[]).map((seq) => ({
+    ...seq,
+    notes: (seq.notes ?? []).map((note) => ({
+      id: note.id,
+      sequence_id: note.sequence_id,
+      author_id: note.author_id,
+      content: note.content,
+      created_at: note.created_at,
+      author_name: note.profiles?.full_name ?? undefined,
+    })),
+  }));
 
   return (
     <div className="grid w-full gap-6">
@@ -31,12 +67,13 @@ export default async function ViewPlayPage({
       </div>
 
       <PlayViewerClient
+        playId={play.id}
         initialPositions={play.initial_positions}
-        sequences={sequences ?? []}
+        sequences={mappedSequences}
         homeColor={play.home_color}
         awayColor={play.away_color}
+        currentUserId={user?.id ?? null}
       />
     </div>
   );
 }
-

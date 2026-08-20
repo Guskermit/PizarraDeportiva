@@ -1,15 +1,33 @@
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { TacticalEditorClient } from "@/components/board/TacticalEditorLoader";
-import { updatePlayDetails } from "@/lib/actions/plays";
-import { PLAY_TYPE_LABELS, FORMATION_LABELS } from "@/lib/futsal/formations";
 import { ActionForm } from "@/components/forms/ActionForm";
-import { SubmitButton } from "@/components/forms/SubmitButton";
 import { ClientColorInput } from "@/components/forms/ClientColorInput";
 import { ClientSelectField } from "@/components/forms/ClientSelectField";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { SubmitButton } from "@/components/forms/SubmitButton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { updatePlayDetails } from "@/lib/actions/plays";
+import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
+import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
+import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+
+interface EditNote {
+  id: string;
+  sequence_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+  profiles?: { full_name: string } | null;
+}
+
+interface EditSequence {
+  id: string;
+  order_index: number;
+  positions: BoardPositions;
+  moves: BoardMove[];
+  notes?: EditNote[];
+}
 
 export default async function EditPlayPage({
   params,
@@ -24,9 +42,27 @@ export default async function EditPlayPage({
 
   const { data: sequences } = await supabase
     .from("play_sequences")
-    .select("id, order_index, positions, moves")
+    .select(
+      "id, order_index, positions, moves, notes:play_sequence_notes(id, sequence_id, author_id, content, created_at, profiles:author_id(full_name))",
+    )
     .eq("play_id", playId)
     .order("order_index", { ascending: true });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const mappedSequences = ((sequences ?? []) as unknown as EditSequence[]).map((seq) => ({
+    ...seq,
+    notes: (seq.notes ?? []).map((note) => ({
+      id: note.id,
+      sequence_id: note.sequence_id,
+      author_id: note.author_id,
+      content: note.content,
+      created_at: note.created_at,
+      author_name: note.profiles?.full_name ?? undefined,
+    })),
+  }));
 
   const playTypeOptions = Object.entries(PLAY_TYPE_LABELS).map(([value, label]) => ({
     value,
@@ -87,12 +123,12 @@ export default async function EditPlayPage({
       <TacticalEditorClient
         playId={play.id}
         initialPositions={play.initial_positions}
-        savedSequences={sequences ?? []}
+        savedSequences={mappedSequences}
         homeColor={play.home_color}
         awayColor={play.away_color}
         status={play.status}
+        currentUserId={user?.id ?? null}
       />
     </div>
   );
 }
-
