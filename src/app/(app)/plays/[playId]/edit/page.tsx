@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/forms/SubmitButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Save } from "lucide-react";
 import { updatePlayDetails } from "@/lib/actions/plays";
 import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
@@ -71,54 +72,58 @@ export default async function EditPlayPage({
 
   return (
     <div className="grid w-full gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{play.title}</h1>
-        <p className="text-muted-foreground">
-          {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]} ·
-          Visitante: {FORMATION_LABELS[play.away_formation]}
-        </p>
-      </div>
-
-      <Card className="max-w-lg">
-        <CardHeader>
-          <CardTitle>Detalles de la jugada</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ActionForm
-            action={updatePlayDetails.bind(null, play.id)}
-            onSuccessMessage="Cambios guardados."
-          >
-            <div className="grid gap-4">
-              <div className="grid gap-1.5">
-                <Label htmlFor="title">Título de la jugada</Label>
-                <Input id="title" name="title" defaultValue={play.title} required />
-              </div>
-              <ClientSelectField
-                id="playType"
-                name="playType"
-                label="Tipo de jugada"
-                options={playTypeOptions}
-                defaultValue={play.play_type}
-              />
-              <ClientColorInput
-                id="homeColor"
-                name="homeColor"
-                label="Color equipo local"
-                defaultValue={play.home_color}
-              />
-              <ClientColorInput
-                id="awayColor"
-                name="awayColor"
-                label="Color equipo visitante"
-                defaultValue={play.away_color}
-              />
-              <div>
-                <SubmitButton>Guardar cambios</SubmitButton>
-              </div>
+      <ActionForm
+        action={updatePlayDetails.bind(null, play.id)}
+        onSuccessMessage="Cambios guardados."
+      >
+        <div className="grid w-full gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="grid gap-1">
+              <h1 className="text-2xl font-semibold">{play.title}</h1>
+              <p className="text-muted-foreground">
+                {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]} ·
+                Visitante: {FORMATION_LABELS[play.away_formation]}
+              </p>
             </div>
-          </ActionForm>
-        </CardContent>
-      </Card>
+            <SubmitButton size="icon" title="Guardar cambios" aria-label="Guardar cambios">
+              <Save />
+            </SubmitButton>
+          </div>
+
+          <Card className="max-w-5xl">
+            <CardHeader>
+              <CardTitle>Detalles de la jugada</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="title">Título de la jugada</Label>
+                  <Input id="title" name="title" defaultValue={play.title} required />
+                </div>
+                <ClientSelectField
+                  id="playType"
+                  name="playType"
+                  label="Tipo de jugada"
+                  options={playTypeOptions}
+                  defaultValue={play.play_type}
+                />
+                <ClientColorInput
+                  id="homeColor"
+                  name="homeColor"
+                  label="Color equipo local"
+                  defaultValue={play.home_color}
+                />
+                <ClientColorInput
+                  id="awayColor"
+                  name="awayColor"
+                  label="Color equipo visitante"
+                  defaultValue={play.away_color}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </ActionForm>
 
       <TacticalEditorClient
         playId={play.id}

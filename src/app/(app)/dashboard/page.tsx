@@ -1,31 +1,56 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Users, ClipboardList, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Users,
+  ClipboardList,
+  TrendingUp,
+  TrendingDown,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PlaysByMonthChart, PlaysByCoachChart } from "@/components/dashboard/AnalyticsCharts";
 
 function StatCard({
   icon: Icon,
   label,
   value,
   color = "primary",
+  trend,
 }: {
   icon: LucideIcon;
   label: string;
   value: React.ReactNode;
   color?: "primary" | "success" | "info";
+  trend?: number;
 }) {
   const colorClasses: Record<string, string> = {
     primary: "bg-primary/10 text-primary",
     success: "bg-primary/10 text-primary",
     info: "bg-accent/20 text-accent-foreground",
   };
+  const up = (trend ?? 0) >= 0;
   return (
-    <Card className="min-w-48 flex-1">
+    <Card className="card-glow min-w-48 flex-1">
       <CardContent className="flex flex-col gap-4">
-        <div className={cn("flex size-10 items-center justify-center rounded-md", colorClasses[color])}>
-          <Icon className="size-5" />
+        <div className="flex items-center justify-between">
+          <div className={cn("flex size-10 items-center justify-center rounded-lg", colorClasses[color])}>
+            <Icon className="size-5" />
+          </div>
+          {trend !== undefined && (
+            <span
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                up ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"
+              )}
+            >
+              {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+              {Math.abs(trend)}%
+            </span>
+          )}
         </div>
         <div className="grid gap-1">
           <span className="text-2xl font-semibold">{value}</span>
@@ -41,11 +66,14 @@ async function ClubStats({ clubId }: { clubId: string }) {
 
   const [{ count: teamCount }, { data: clubPlaysRaw }] = await Promise.all([
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("club_id", clubId),
-    supabase.from("plays").select("owner_coach_id, profiles(full_name)").eq("club_id", clubId),
+    supabase
+      .from("plays")
+      .select("owner_coach_id, created_at, profiles(full_name)")
+      .eq("club_id", clubId),
   ]);
 
   const clubPlays = clubPlaysRaw as unknown as
-    | { owner_coach_id: string; profiles: { full_name: string } | null }[]
+    | { owner_coach_id: string; created_at: string; profiles: { full_name: string } | null }[]
     | null;
 
   const playsByCoach = new Map<string, { name: string; count: number }>();
@@ -58,6 +86,33 @@ async function ClubStats({ clubId }: { clubId: string }) {
     playsByCoach.set(play.owner_coach_id, entry);
   }
 
+  // Jugadas por mes (últimos 6 meses)
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    return {
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      month: d.toLocaleDateString("es-ES", { month: "short" }),
+      count: 0,
+    };
+  });
+  for (const play of clubPlays ?? []) {
+    const d = new Date(play.created_at);
+    const month = months.find((m) => m.key === `${d.getFullYear()}-${d.getMonth()}`);
+    if (month) month.count += 1;
+  }
+
+  const thisMonth = months[months.length - 1].count;
+  const lastMonth = months[months.length - 2].count;
+  const trend =
+    lastMonth === 0
+      ? thisMonth > 0
+        ? 100
+        : 0
+      : Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+
+  const coachChartData = [...playsByCoach.entries()].map(([, coach]) => coach);
+
   return (
     <div className="grid w-full gap-4">
       <div className="flex flex-wrap gap-4">
@@ -67,24 +122,49 @@ async function ClubStats({ clubId }: { clubId: string }) {
           label="Jugadas totales"
           value={clubPlays?.length ?? 0}
           color="success"
+          trend={trend}
         />
-        <StatCard icon={ShieldCheck} label="Entrenadores activos" value={playsByCoach.size} color="info" />
+        <StatCard
+          icon={ShieldCheck}
+          label="Entrenadores activos"
+          value={playsByCoach.size}
+          color="info"
+        />
       </div>
 
-      <Card>
-        <CardContent className="grid gap-3">
-          <span className="text-sm text-muted-foreground">Jugadas por entrenador</span>
-          {playsByCoach.size === 0 && (
-            <span className="text-sm text-muted-foreground">Todavía no se han creado jugadas.</span>
-          )}
-          {[...playsByCoach.entries()].map(([coachId, coach]) => (
-            <div key={coachId} className="flex items-center justify-between gap-2">
-              <span>{coach.name}</span>
-              <span className="font-medium">{coach.count}</span>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="card-glow">
+          <CardContent className="grid gap-4">
+            <div className="grid gap-0.5">
+              <span className="text-sm font-medium">Jugadas por mes</span>
+              <span className="text-xs text-muted-foreground">Últimos 6 meses</span>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+            {clubPlays?.length ? (
+              <PlaysByMonthChart data={months.map(({ month, count }) => ({ month, count }))} />
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Todavía no se han creado jugadas.
+              </span>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="card-glow">
+          <CardContent className="grid gap-4">
+            <div className="grid gap-0.5">
+              <span className="text-sm font-medium">Jugadas por entrenador</span>
+              <span className="text-xs text-muted-foreground">Distribución del catálogo</span>
+            </div>
+            {coachChartData.length ? (
+              <PlaysByCoachChart data={coachChartData} />
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Todavía no se han creado jugadas.
+              </span>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -136,7 +216,13 @@ export default async function DashboardPage() {
       {isClubAdmin && (
         <div className="grid w-full gap-4">
           <div className="flex w-full items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold">{adminClubs![0].clubs.name}</h2>
+            <div className="flex items-center gap-2">
+              <span
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: "var(--club-primary, var(--primary))" }}
+              />
+              <h2 className="text-lg font-semibold">{adminClubs![0].clubs.name}</h2>
+            </div>
             <div className="flex gap-3">
               <Button variant="secondary" render={<Link href="/club" />}>
                 <ShieldCheck />

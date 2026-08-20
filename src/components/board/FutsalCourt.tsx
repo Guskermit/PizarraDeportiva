@@ -11,7 +11,7 @@ export function FutsalCourt() {
   const midY = COURT_HEIGHT / 2;
   const areaWidth = COURT_WIDTH * 0.15;
   const areaHeight = COURT_HEIGHT * 0.5;
-  const goalWidth = areaHeight * 0.44;
+  const goalWidth = areaHeight * 0.3;
 
   return (
     <>

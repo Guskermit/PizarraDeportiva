@@ -11,17 +11,24 @@ function getContrastColor(hex: string) {
 
 // Overrides the shadcn/Tailwind `--primary`/`--ring` CSS variables a club's brand color drives
 // (buttons, links, focus rings), so per-club theming keeps working without a full palette.
-export function getBrandColorVars(primary?: string | null): React.CSSProperties {
-  if (!primary || !HEX_RE.test(primary)) return {};
+//
+// Enfoque híbrido: la UI general usa un acento fijo (violeta). Los colores del club se exponen
+// como variables propias (`--club-primary`, `--club-secondary`) para usarlos en detalles de
+// identidad del club (logo, badges, pizarra) sin romper el acento global.
+export function getBrandColorVars(
+  primary?: string | null,
+  secondary?: string | null,
+): React.CSSProperties {
+  const vars: Record<string, string> = {};
 
-  const onSolid = getContrastColor(primary);
+  if (primary && HEX_RE.test(primary)) {
+    vars["--club-primary"] = primary;
+    vars["--club-primary-foreground"] = getContrastColor(primary);
+  }
+  if (secondary && HEX_RE.test(secondary)) {
+    vars["--club-secondary"] = secondary;
+    vars["--club-secondary-foreground"] = getContrastColor(secondary);
+  }
 
-  return {
-    "--primary": primary,
-    "--primary-foreground": onSolid,
-    "--ring": primary,
-    "--sidebar-primary": primary,
-    "--sidebar-primary-foreground": onSolid,
-    "--sidebar-ring": primary,
-  } as React.CSSProperties;
+  return vars as React.CSSProperties;
 }

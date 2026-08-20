@@ -3,16 +3,21 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center p-8">
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center p-8">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="flex max-w-2xl flex-col items-center gap-6 text-center">
         <Badge variant="outline" className="gap-1.5 text-muted-foreground">
           ⚽ Pizarra táctica para fútbol sala
         </Badge>
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Diseña, comparte y visualiza jugadas de fútbol sala
+          Diseña, comparte y visualiza jugadas de{" "}
+          <span className="text-gradient">fútbol sala</span>
         </h1>
         <p className="text-balance text-lg text-muted-foreground">
           Una pizarra táctica interactiva para clubes, entrenadores y jugadores. Crea tu club,
@@ -29,7 +34,7 @@ export default function Home() {
         </div>
 
         <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <Card className="max-w-64 text-left">
+          <Card className="card-glow max-w-64 text-left">
             <CardHeader>
               <CardTitle>Estructura de club</CardTitle>
             </CardHeader>
@@ -37,7 +42,7 @@ export default function Home() {
               Club → Administradores → Equipos → Entrenadores y jugadores.
             </CardContent>
           </Card>
-          <Card className="max-w-64 text-left">
+          <Card className="card-glow max-w-64 text-left">
             <CardHeader>
               <CardTitle>Pizarra táctil</CardTitle>
             </CardHeader>
@@ -45,7 +50,7 @@ export default function Home() {
               Arrastra jugadores y balón, dibuja secuencias de movimiento con líneas curvables.
             </CardContent>
           </Card>
-          <Card className="max-w-64 text-left">
+          <Card className="card-glow max-w-64 text-left">
             <CardHeader>
               <CardTitle>Comparte jugadas</CardTitle>
             </CardHeader>

@@ -7,11 +7,15 @@ import { PasswordInput } from "@/components/forms/PasswordInput";
 import { signUpUser } from "@/lib/actions/auth";
 import { ActionForm } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center p-8">
-      <Card className="w-full max-w-md">
+    <div className="relative flex min-h-screen w-full items-center justify-center p-8">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <Card className="card-glow w-full max-w-md">
         <CardHeader>
           <CardTitle>Crear cuenta</CardTitle>
           <CardDescription>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Stage, Layer } from "react-konva";
 import { COURT_WIDTH, COURT_HEIGHT, GOAL_DEPTH } from "@/lib/futsal/formations";
 import { FutsalCourt } from "@/components/board/FutsalCourt";
@@ -37,6 +37,12 @@ export function TacticalBoard({
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(COURT_WIDTH * 2);
 
+  // Measure synchronously on mount so remounts (e.g. fullscreen toggles) start at the right size.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (el) setWidth(el.clientWidth);
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -45,7 +51,21 @@ export function TacticalBoard({
       if (entry) setWidth(entry.contentRect.width);
     });
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Re-measure after fullscreen transitions settle (ResizeObserver can miss them).
+    function onFullscreenChange() {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (el) setWidth(el.clientWidth);
+        });
+      });
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    };
   }, []);
 
   const scale = width / (COURT_WIDTH + GOAL_DEPTH * 2);

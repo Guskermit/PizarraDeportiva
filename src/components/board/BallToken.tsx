@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Circle, Group, Image as KonvaImage } from "react-konva";
 import type Konva from "konva";
 
-const BALL_SIZE = 18;
+const BALL_SIZE = 9;
 
 export function BallToken({
   x,

@@ -6,7 +6,7 @@ export const COURT_WIDTH = 400;
 export const COURT_HEIGHT = 200;
 // Extra margin (in the same units) reserved on each side of the pitch so the goal frames
 // have room to render outside the touchlines instead of being clipped by the canvas.
-export const GOAL_DEPTH = 20;
+export const GOAL_DEPTH = 10;
 
 export const PLAY_TYPE_LABELS: Record<string, string> = {
   corner: "Córner",
