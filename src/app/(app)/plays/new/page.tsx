@@ -18,10 +18,16 @@ export default async function NewPlayPage() {
 
   const { data: teamsRaw } = await supabase
     .from("team_coaches")
-    .select("teams(id, name, clubs(primary_color))")
+    .select("teams(id, name, clubs(primary_color, secondary_color))")
     .eq("profile_id", user!.id);
   const teams = teamsRaw as unknown as
-    | { teams: { id: string; name: string; clubs: { primary_color: string } | null } }[]
+    | {
+        teams: {
+          id: string;
+          name: string;
+          clubs: { primary_color: string; secondary_color: string } | null;
+        };
+      }[]
     | null;
 
   const teamOptions = (teams ?? []).map((t) => {
@@ -30,6 +36,7 @@ export default async function NewPlayPage() {
   });
 
   const defaultHomeColor = teams?.[0]?.teams?.clubs?.primary_color ?? "#1d4ed8";
+  const defaultAwayColor = teams?.[0]?.teams?.clubs?.secondary_color ?? "#dc2626";
 
   const playTypeOptions = Object.entries(PLAY_TYPE_LABELS).map(([value, label]) => ({
     value,
@@ -101,7 +108,7 @@ export default async function NewPlayPage() {
                   id="awayColor"
                   name="awayColor"
                   label="Color equipo visitante"
-                  defaultValue="#dc2626"
+                  defaultValue={defaultAwayColor}
                 />
                 <SubmitButton className="w-full">
                   Crear jugada

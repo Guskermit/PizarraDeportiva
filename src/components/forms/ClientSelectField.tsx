@@ -32,7 +32,9 @@ export function ClientSelectField({
       <input type="hidden" name={name} value={value} />
       <Select value={value} onValueChange={(v) => setValue(v as string)}>
         <SelectTrigger id={triggerId} className="w-full">
-          <SelectValue placeholder={label} />
+          <SelectValue>
+            {(v) => options.find((o) => o.value === v)?.label ?? label}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
