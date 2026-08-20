@@ -20,12 +20,14 @@ function StatCard({
   value,
   color = "primary",
   trend,
+  href,
 }: {
   icon: LucideIcon;
   label: string;
   value: React.ReactNode;
   color?: "primary" | "success" | "info";
   trend?: number;
+  href?: string;
 }) {
   const colorClasses: Record<string, string> = {
     primary: "bg-primary/10 text-primary",
@@ -33,30 +35,45 @@ function StatCard({
     info: "bg-accent/20 text-accent-foreground",
   };
   const up = (trend ?? 0) >= 0;
+  const content = (
+    <CardContent className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className={cn("flex size-10 items-center justify-center rounded-lg", colorClasses[color])}>
+          <Icon className="size-5" />
+        </div>
+        {trend !== undefined && (
+          <span
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+              up ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"
+            )}
+          >
+            {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+            {Math.abs(trend)}%
+          </span>
+        )}
+      </div>
+      <div className="grid gap-1">
+        <span className="text-2xl font-semibold">{value}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
+      </div>
+    </CardContent>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="card-glow min-w-48 flex-1 rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Card className="h-full border-transparent shadow-none">{content}</Card>
+      </Link>
+    );
+  }
+
   return (
     <Card className="card-glow min-w-48 flex-1">
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className={cn("flex size-10 items-center justify-center rounded-lg", colorClasses[color])}>
-            <Icon className="size-5" />
-          </div>
-          {trend !== undefined && (
-            <span
-              className={cn(
-                "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                up ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"
-              )}
-            >
-              {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-              {Math.abs(trend)}%
-            </span>
-          )}
-        </div>
-        <div className="grid gap-1">
-          <span className="text-2xl font-semibold">{value}</span>
-          <span className="text-sm text-muted-foreground">{label}</span>
-        </div>
-      </CardContent>
+      {content}
     </Card>
   );
 }
@@ -116,19 +133,21 @@ async function ClubStats({ clubId }: { clubId: string }) {
   return (
     <div className="grid w-full gap-4">
       <div className="flex flex-wrap gap-4">
-        <StatCard icon={Users} label="Equipos" value={teamCount ?? 0} color="primary" />
+        <StatCard icon={Users} label="Equipos" value={teamCount ?? 0} color="primary" href="/teams" />
         <StatCard
           icon={ClipboardList}
           label="Jugadas totales"
           value={clubPlays?.length ?? 0}
           color="success"
           trend={trend}
+          href="/plays"
         />
         <StatCard
           icon={ShieldCheck}
           label="Entrenadores activos"
           value={playsByCoach.size}
           color="info"
+          href="/club"
         />
       </div>
 
@@ -202,6 +221,7 @@ export default async function DashboardPage() {
     | null;
 
   const isClubAdmin = (adminClubs?.length ?? 0) > 0;
+  const isOwner = adminClubs?.[0]?.role === "owner";
   const isCoach = (coachTeams?.length ?? 0) > 0;
 
   return (
@@ -224,10 +244,12 @@ export default async function DashboardPage() {
               <h2 className="text-lg font-semibold">{adminClubs![0].clubs.name}</h2>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" render={<Link href="/club" />}>
-                <ShieldCheck />
-                Editar club
-              </Button>
+              {isOwner && (
+                <Button variant="secondary" render={<Link href="/club" />}>
+                  <ShieldCheck />
+                  Editar club
+                </Button>
+              )}
               <Button variant="secondary" render={<Link href="/teams" />}>
                 <Users />
                 Gestionar equipos

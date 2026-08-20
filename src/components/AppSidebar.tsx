@@ -179,10 +179,12 @@ export function AppSidebar({
   clubName,
   clubLogoUrl,
   userName,
+  isOwner,
 }: {
   clubName?: string;
   clubLogoUrl?: string | null;
   userName?: string | null;
+  isOwner?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -202,7 +204,7 @@ export function AppSidebar({
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
-    ...(clubName ? [{ href: "/club", label: "Club", icon: ShieldCheck }] : []),
+    ...(isOwner ? [{ href: "/club", label: "Club", icon: ShieldCheck }] : []),
     { href: "/teams", label: "Equipos", icon: Users },
     { href: "/plays", label: "Jugadas", icon: ClipboardList },
   ];

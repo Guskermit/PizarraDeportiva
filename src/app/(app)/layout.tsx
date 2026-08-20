@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [{ data: adminOfRaw }, { data: profileRaw }] = await Promise.all([
     supabase
       .from("club_admins")
-      .select("clubs(name, logo_url, primary_color, secondary_color)")
+      .select("role, clubs(name, logo_url, primary_color, secondary_color)")
       .eq("profile_id", user.id)
       .limit(1)
       .maybeSingle(),
@@ -25,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const adminOf = adminOfRaw as unknown as
     | {
+        role: string;
         clubs: {
           name: string;
           logo_url: string | null;
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const clubName = adminOf?.clubs?.name;
   const clubLogoUrl = adminOf?.clubs?.logo_url;
+  const isOwner = adminOf?.role === "owner";
   const brandVars = getBrandColorVars(
     adminOf?.clubs?.primary_color,
     adminOf?.clubs?.secondary_color,
@@ -47,7 +49,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen w-full flex-col md:flex-row" style={brandVars}>
-      <AppSidebar clubName={clubName} clubLogoUrl={clubLogoUrl} userName={fullName} />
+      <AppSidebar
+        clubName={clubName}
+        clubLogoUrl={clubLogoUrl}
+        userName={fullName}
+        isOwner={isOwner}
+      />
       <div className="flex w-full flex-col overflow-y-auto">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-background/80 px-4 py-3 backdrop-blur md:px-8">
           <div className="grid gap-0.5">

@@ -88,6 +88,7 @@ export interface Database {
           club_id: string;
           profile_id: string;
           role: ClubAdminRole;
+          is_blocked: boolean;
           created_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["club_admins"]["Row"]> & {
