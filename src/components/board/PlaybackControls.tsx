@@ -45,9 +45,12 @@ export function PlaybackControls({
     function onChange() {
       const fs = Boolean(document.fullscreenElement);
       setIsFullscreen(fs);
-      if (!fs && screen.orientation?.unlock) {
+      if (!fs) {
+        const orientation = screen.orientation as ScreenOrientation & {
+          unlock?: () => void;
+        };
         try {
-          screen.orientation.unlock();
+          orientation.unlock?.();
         } catch {
           // ignore
         }
@@ -63,9 +66,12 @@ export function PlaybackControls({
     } else {
       await containerRef.current?.requestFullscreen();
       // On mobile/tablet, lock to landscape for a better tactical view.
-      if (screen.orientation?.lock) {
+      const orientation = screen.orientation as ScreenOrientation & {
+        lock?: (orientation: string) => Promise<void>;
+      };
+      if (orientation.lock) {
         try {
-          await screen.orientation.lock("landscape");
+          await orientation.lock("landscape");
         } catch {
           // ignore (desktop or unsupported)
         }

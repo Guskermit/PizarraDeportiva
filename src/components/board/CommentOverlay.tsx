@@ -23,12 +23,16 @@ export function CommentOverlay({
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const el = e.currentTarget;
-    const container = containerRef.current;
     let originX = pos.x;
-    if (originX === null && container) {
-      const rect = el.getBoundingClientRect();
-      const cRect = container.getBoundingClientRect();
-      originX = rect.left - cRect.left;
+    if (originX === null) {
+      const container = containerRef.current;
+      if (container) {
+        const rect = el.getBoundingClientRect();
+        const cRect = container.getBoundingClientRect();
+        originX = rect.left - cRect.left;
+      } else {
+        originX = 0;
+      }
     }
     dragRef.current = {
       startX: e.clientX,
