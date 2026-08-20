@@ -233,17 +233,15 @@ export async function setClubCoachRole(
   clubId: string,
   profileId: string,
   role: "owner" | "admin",
-): Promise<ActionState> {
+): Promise<void> {
   const supabase = await createClient();
   const ownerCheck = await requireOwner(supabase, clubId);
-  if (ownerCheck.error) return { error: ownerCheck.error };
+  if (ownerCheck.error) return;
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user?.id === profileId) {
-    return { error: "No puedes cambiar tu propio rol." };
-  }
+  if (user?.id === profileId) return;
 
   if (role === "owner") {
     // Transfer ownership: demote everyone else first so there is a single owner.
@@ -251,7 +249,7 @@ export async function setClubCoachRole(
       .from("club_admins")
       .update({ role: "admin" })
       .eq("club_id", clubId);
-    if (demoteError) return { error: demoteError.message };
+    if (demoteError) return;
   }
 
   const { error } = await supabase
@@ -259,63 +257,56 @@ export async function setClubCoachRole(
     .update({ role })
     .eq("club_id", clubId)
     .eq("profile_id", profileId);
-  if (error) return { error: error.message };
+  if (error) return;
 
   revalidatePath("/club");
-  return { success: true };
 }
 
 export async function setClubCoachBlocked(
   clubId: string,
   profileId: string,
   blocked: boolean,
-): Promise<ActionState> {
+): Promise<void> {
   const supabase = await createClient();
   const ownerCheck = await requireOwner(supabase, clubId);
-  if (ownerCheck.error) return { error: ownerCheck.error };
+  if (ownerCheck.error) return;
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user?.id === profileId) {
-    return { error: "No puedes bloquear tu propio acceso." };
-  }
+  if (user?.id === profileId) return;
 
   const { error } = await supabase
     .from("club_admins")
     .update({ is_blocked: blocked })
     .eq("club_id", clubId)
     .eq("profile_id", profileId);
-  if (error) return { error: error.message };
+  if (error) return;
 
   revalidatePath("/club");
-  return { success: true };
 }
 
 export async function removeClubCoach(
   clubId: string,
   profileId: string,
-): Promise<ActionState> {
+): Promise<void> {
   const supabase = await createClient();
   const ownerCheck = await requireOwner(supabase, clubId);
-  if (ownerCheck.error) return { error: ownerCheck.error };
+  if (ownerCheck.error) return;
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user?.id === profileId) {
-    return { error: "No puedes eliminarte a ti mismo." };
-  }
+  if (user?.id === profileId) return;
 
   const { error } = await supabase
     .from("club_admins")
     .delete()
     .eq("club_id", clubId)
     .eq("profile_id", profileId);
-  if (error) return { error: error.message };
+  if (error) return;
 
   revalidatePath("/club");
-  return { success: true };
 }
 
 export async function setCoachTeams(
