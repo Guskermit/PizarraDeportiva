@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Ban, Crown, Eye, Trash2, Unlock, UserCog } from "lucide-react";
+import { Ban, Eye, Trash2, Unlock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateClub,
   addClubCoach,
-  setClubCoachRole,
   setClubCoachBlocked,
   removeClubCoach,
 } from "@/lib/actions/clubs";
 import { createTeam } from "@/lib/actions/teams";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { CoachTeamsEditor } from "@/components/club/CoachTeamsEditor";
+import { CoachRoleSelect } from "@/components/club/CoachRoleSelect";
 import { CoachesCard } from "@/components/club/CoachesCard";
 import { TeamsCard } from "@/components/club/TeamsCard";
 import { PlayersCard } from "@/components/club/PlayersCard";
@@ -21,6 +21,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import type { ClubAdminRole } from "@/lib/supabase/database.types";
+
+function roleLabel(role: string) {
+  if (role === "owner") return "propietario";
+  if (role === "gestor") return "gestor";
+  return "entrenador";
+}
+
+function RoleBadge({ role }: { role: string }) {
+  if (role === "owner") return <Badge>Propietario</Badge>;
+  if (role === "gestor") return <Badge variant="secondary">Gestor</Badge>;
+  return <Badge variant="outline">Entrenador</Badge>;
+}
 
 export default async function ClubPage() {
   const supabase = await createClient();
@@ -48,9 +61,10 @@ export default async function ClubPage() {
       }
     | null;
 
-  // The club window is only visible to the owner.
-  if (!admin || admin.role !== "owner") redirect("/dashboard");
+  // The club window is visible to all club admins (owner or admin).
+  if (!admin) redirect("/dashboard");
 
+  const isOwner = admin.role === "owner";
   const club = admin.clubs;
 
   const { data: teamsRaw } = await supabase
@@ -117,7 +131,7 @@ export default async function ClubPage() {
     if (!coachMap.has(tc.profile_id)) {
       coachMap.set(tc.profile_id, {
         profile_id: tc.profile_id,
-        role: "admin",
+        role: "entrenador",
         is_blocked: false,
         profiles: tc.profiles,
       });
@@ -177,13 +191,15 @@ export default async function ClubPage() {
     <div className="grid w-full gap-8">
       <ClubEditSection
         club={club}
-        roleLabel="Propietario"
+        roleLabel={isOwner ? "Propietario" : "Entrenador"}
+        canEdit={isOwner}
         action={updateClub.bind(null, club.id)}
         onSuccessMessage="Club actualizado."
       />
 
       <CoachesCard
         action={addClubCoach.bind(null, club.id)}
+        canManage={isOwner}
         onSuccessMessage="Entrenador añadido. Si no tenía cuenta, se le ha enviado un email para crear su contraseña."
       >
         <FlatTable
@@ -202,9 +218,9 @@ export default async function ClubPage() {
               const assignedTeams = coachTeamMap.get(c.profile_id) ?? [];
               return {
                 id: c.profile_id,
-                searchText: `${profile.full_name} ${profile.email} ${
-                  c.role === "owner" ? "propietario" : "entrenador"
-                } ${c.is_blocked ? "bloqueado" : ""}`,
+                searchText: `${profile.full_name} ${profile.email} ${roleLabel(
+                  c.role,
+                )} ${c.is_blocked ? "bloqueado" : ""}`,
                 cells: [
                   <div key="coach" className="flex items-center gap-3">
                     <Avatar size="sm">
@@ -223,39 +239,43 @@ export default async function ClubPage() {
                     {profile.email}
                   </span>,
                   <span key="role">
-                    {c.role === "owner" ? (
-                      <Badge>Propietario</Badge>
+                    {isOwner && !isSelf ? (
+                      <CoachRoleSelect
+                        clubId={club.id}
+                        profileId={c.profile_id}
+                        role={c.role as ClubAdminRole}
+                      />
                     ) : (
-                      <Badge variant="outline">Entrenador</Badge>
+                      <RoleBadge role={c.role} />
                     )}
                   </span>,
                   <div key="teams" className="min-w-40">
-                    <CoachTeamsEditor
-                      clubId={club.id}
-                      profileId={c.profile_id}
-                      teams={teams}
-                      assignedTeamIds={assignedTeams}
-                    />
-                  </div>,
-                  !isSelf ? (
-                    <div key="actions" className="flex items-center gap-1">
-                      <form
-                        action={setClubCoachRole.bind(
-                          null,
-                          club.id,
-                          c.profile_id,
-                          c.role === "owner" ? "admin" : "owner",
+                    {isOwner ? (
+                      <CoachTeamsEditor
+                        clubId={club.id}
+                        profileId={c.profile_id}
+                        teams={teams}
+                        assignedTeamIds={assignedTeams}
+                      />
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {assignedTeams.length === 0 ? (
+                          <span className="text-sm text-muted-foreground">Sin equipos</span>
+                        ) : (
+                          assignedTeams.map((teamId) => {
+                            const team = teams.find((t) => t.id === teamId);
+                            return team ? (
+                              <Badge key={teamId} variant="outline">
+                                {team.name}
+                              </Badge>
+                            ) : null;
+                          })
                         )}
-                      >
-                        <SubmitButton
-                          variant="ghost"
-                          size="icon-sm"
-                          title={c.role === "owner" ? "Hacer entrenador" : "Hacer propietario"}
-                          aria-label={c.role === "owner" ? "Hacer entrenador" : "Hacer propietario"}
-                        >
-                          {c.role === "owner" ? <UserCog /> : <Crown />}
-                        </SubmitButton>
-                      </form>
+                      </div>
+                    )}
+                  </div>,
+                  isOwner && !isSelf ? (
+                    <div key="actions" className="flex items-center gap-1">
                       <form
                         action={setClubCoachBlocked.bind(null, club.id, c.profile_id, !c.is_blocked)}
                       >

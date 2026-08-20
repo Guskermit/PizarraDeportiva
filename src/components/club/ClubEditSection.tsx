@@ -15,6 +15,7 @@ import { getInitials } from "@/lib/utils";
 export function ClubEditSection({
   club,
   roleLabel,
+  canEdit = true,
   action,
   onSuccessMessage,
 }: {
@@ -26,6 +27,7 @@ export function ClubEditSection({
     secondary_color: string;
   };
   roleLabel: string;
+  canEdit?: boolean;
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   onSuccessMessage: string;
 }) {
@@ -42,16 +44,18 @@ export function ClubEditSection({
           <h1 className="text-2xl font-semibold">Tu club: {club.name}</h1>
           <div className="flex items-center gap-2">
             <p className="text-muted-foreground">Rol: {roleLabel}</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setOpen((v) => !v)}
-              title={open ? "Cerrar edición" : "Editar club"}
-              aria-label={open ? "Cerrar edición" : "Editar club"}
-            >
-              <Pencil />
-            </Button>
+            {canEdit && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setOpen((v) => !v)}
+                title={open ? "Cerrar edición" : "Editar club"}
+                aria-label={open ? "Cerrar edición" : "Editar club"}
+              >
+                <Pencil />
+              </Button>
+            )}
           </div>
         </div>
       </div>

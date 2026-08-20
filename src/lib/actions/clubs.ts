@@ -222,7 +222,7 @@ export async function addClubCoach(
 
   const { error } = await supabase
     .from("club_admins")
-    .insert({ club_id: clubId, profile_id: profileId, role: "admin" });
+    .insert({ club_id: clubId, profile_id: profileId, role: "entrenador" });
   if (error) return { error: error.message };
 
   revalidatePath("/club");
@@ -232,7 +232,7 @@ export async function addClubCoach(
 export async function setClubCoachRole(
   clubId: string,
   profileId: string,
-  role: "owner" | "admin",
+  role: "owner" | "gestor" | "entrenador",
 ): Promise<void> {
   const supabase = await createClient();
   const ownerCheck = await requireOwner(supabase, clubId);
@@ -244,12 +244,24 @@ export async function setClubCoachRole(
   if (user?.id === profileId) return;
 
   if (role === "owner") {
-    // Transfer ownership: demote everyone else first so there is a single owner.
+    // Transfer ownership: promote the target first (the current user is still owner,
+    // so the owner-only RLS check passes), then demote everyone else.
+    const { error: promoteError } = await supabase
+      .from("club_admins")
+      .update({ role: "owner" })
+      .eq("club_id", clubId)
+      .eq("profile_id", profileId);
+    if (promoteError) return;
+
     const { error: demoteError } = await supabase
       .from("club_admins")
-      .update({ role: "admin" })
-      .eq("club_id", clubId);
+      .update({ role: "entrenador" })
+      .eq("club_id", clubId)
+      .neq("profile_id", profileId);
     if (demoteError) return;
+
+    revalidatePath("/club");
+    return;
   }
 
   const { error } = await supabase

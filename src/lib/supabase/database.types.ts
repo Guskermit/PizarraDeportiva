@@ -1,7 +1,7 @@
 // Hand-written types mirroring supabase/migrations/0001_init.sql.
 // Regenerate with `supabase gen types typescript` once the project is linked, if preferred.
 
-export type ClubAdminRole = "owner" | "admin";
+export type ClubAdminRole = "owner" | "gestor" | "entrenador";
 
 export type PlayType =
   | "corner"
@@ -96,6 +96,15 @@ export interface Database {
           profile_id: string;
         };
         Update: Partial<Database["public"]["Tables"]["club_admins"]["Row"]>;
+        Relationships: [];
+      };
+      platform_admins: {
+        Row: {
+          profile_id: string;
+          created_at: string;
+        };
+        Insert: { profile_id: string };
+        Update: Partial<Database["public"]["Tables"]["platform_admins"]["Row"]>;
         Relationships: [];
       };
       teams: {

@@ -9,8 +9,24 @@ export async function getCurrentUser() {
   return user;
 }
 
+// Super_admin (nivel plataforma): gestiona el panel de control y la plataforma.
+export async function isSuperAdmin(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("platform_admins")
+    .select("profile_id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
+  return !!data;
+}
+
 export type MyClub = {
-  role: "owner" | "admin";
+  role: "owner" | "gestor" | "entrenador";
   clubs: {
     id: string;
     name: string;

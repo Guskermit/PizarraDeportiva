@@ -38,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const clubName = adminOf?.clubs?.name;
   const clubLogoUrl = adminOf?.clubs?.logo_url;
-  const isOwner = adminOf?.role === "owner";
+  const isClubAdmin = !!adminOf;
   const brandVars = getBrandColorVars(
     adminOf?.clubs?.primary_color,
     adminOf?.clubs?.secondary_color,
@@ -53,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         clubName={clubName}
         clubLogoUrl={clubLogoUrl}
         userName={fullName}
-        isOwner={isOwner}
+        isClubAdmin={isClubAdmin}
       />
       <div className="flex w-full flex-col overflow-y-auto">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-background/80 px-4 py-3 backdrop-blur md:px-8">

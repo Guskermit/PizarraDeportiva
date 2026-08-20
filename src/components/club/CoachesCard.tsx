@@ -13,10 +13,12 @@ import { cn } from "@/lib/utils";
 export function CoachesCard({
   action,
   onSuccessMessage,
+  canManage = true,
   children,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   onSuccessMessage: string;
+  canManage?: boolean;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -43,6 +45,7 @@ export function CoachesCard({
           <CardTitle>Entrenadores del club</CardTitle>
         </button>
         {!collapsed &&
+          canManage &&
           (!open ? (
             <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
               <Plus />
