@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { updatePlayDetails } from "@/lib/actions/plays";
 import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
+import { getBoardColors } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { ChevronDown, Save } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -69,6 +70,7 @@ export default async function EditPlayPage({
     value,
     label,
   }));
+  const boardColors = await getBoardColors();
 
   return (
     <div className="grid w-full gap-6">
@@ -132,8 +134,8 @@ export default async function EditPlayPage({
         playId={play.id}
         initialPositions={play.initial_positions}
         savedSequences={mappedSequences}
-        homeColor={play.home_color}
-        awayColor={play.away_color}
+        homeColor={boardColors.homeColor}
+        awayColor={boardColors.awayColor}
         status={play.status}
         currentUserId={user?.id ?? null}
       />

@@ -220,6 +220,22 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["play_shares"]["Row"]>;
         Relationships: [];
       };
+      board_situations: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name: string;
+          positions: BoardPositions;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["board_situations"]["Row"]> & {
+          owner_id: string;
+          name: string;
+          positions: BoardPositions;
+        };
+        Update: Partial<Database["public"]["Tables"]["board_situations"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

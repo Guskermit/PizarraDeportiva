@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -69,6 +69,70 @@ export async function getMyTeams(): Promise<MyCoachedTeam[]> {
     .eq("profile_id", user.id);
 
   return (data ?? []) as unknown as MyCoachedTeam[];
+}
+
+export async function getBoardColors() {
+  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316" };
+
+  const { data: adminMembership } = await adminSupabase
+    .from("club_admins")
+    .select("club_id")
+    .eq("profile_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  let clubId = adminMembership?.club_id;
+  if (!clubId) {
+    const { data: coachMembership } = await adminSupabase
+      .from("team_coaches")
+      .select("team_id")
+      .eq("profile_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    clubId = coachMembership?.team_id
+      ? (
+          await adminSupabase
+            .from("teams")
+            .select("club_id")
+            .eq("id", coachMembership.team_id)
+            .single()
+        ).data?.club_id
+      : undefined;
+  }
+  if (!clubId) {
+    const { data: playerMembership } = await adminSupabase
+      .from("team_players")
+      .select("team_id")
+      .eq("profile_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    clubId = playerMembership?.team_id
+      ? (
+          await adminSupabase
+            .from("teams")
+            .select("club_id")
+            .eq("id", playerMembership.team_id)
+            .single()
+        ).data?.club_id
+      : undefined;
+  }
+
+  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316" };
+  const { data: club } = await adminSupabase
+    .from("clubs")
+    .select("primary_color, secondary_color")
+    .eq("id", clubId)
+    .single();
+
+  return {
+    homeColor: club?.primary_color ?? "#1d4ed8",
+    awayColor: club?.secondary_color ?? "#f97316",
+  };
 }
 
 export type ClubCoach = {

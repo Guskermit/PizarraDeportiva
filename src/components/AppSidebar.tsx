@@ -7,10 +7,12 @@ import {
   LayoutDashboard,
   ShieldCheck,
   ClipboardList,
+  PenLine,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Save,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -204,6 +206,8 @@ export function AppSidebar({
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
     ...(isClubAdmin ? [{ href: "/club", label: "Club", icon: ShieldCheck }] : []),
+    { href: "/board", label: "Pizarra libre", icon: PenLine },
+    { href: "/situations", label: "Situaciones", icon: Save },
     { href: "/plays", label: "Jugadas", icon: ClipboardList },
   ];
 

@@ -85,7 +85,9 @@ localmente. Si usas otro proxy corporativo, ajusta el nombre del certificado en 
 
 - **Registro de club** (`/register-club`): crea el usuario administrador, el club y sube el logo.
 - **Panel** (`/dashboard`): resumen según el rol (administrador de club, entrenador o jugador).
-- **Equipos** (`/teams`): alta de equipos y gestión de plantilla (entrenadores/jugadores por email).
+- **Club** (`/club`): alta de equipos y gestión de plantilla (entrenadores/jugadores por email).
+- **Pizarra libre** (`/board`): tablero a pantalla completa para explicar jugadas en directo.
+- **Situaciones** (`/situations`): creación y carga de posiciones preconfiguradas sin movimientos.
 - **Jugadas** (`/plays`): catálogo propio, jugadas compartidas, compartir y copiar al catálogo.
 - **Editor táctico** (`/plays/[id]/edit`): posicionamiento inicial y grabación de secuencias de
   movimiento (líneas discontinuas si el jugador no tiene el balón, sólidas si lo tiene).
