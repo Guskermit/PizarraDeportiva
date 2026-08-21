@@ -193,7 +193,6 @@ export async function addClubCoach(
     const tempPassword = crypto.randomUUID();
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
-      password: tempPassword,
       email_confirm: true,
       user_metadata: { full_name: name },
     });
@@ -233,38 +232,50 @@ export async function setClubCoachRole(
   clubId: string,
   profileId: string,
   role: "owner" | "gestor" | "entrenador",
-): Promise<void> {
+): Promise<ActionState> {
   const supabase = await createClient();
   const ownerCheck = await requireOwner(supabase, clubId);
-  if (ownerCheck.error) return;
+  if (ownerCheck.error) return { error: ownerCheck.error };
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user?.id === profileId) return;
+  if (user?.id === profileId) return { error: "No puedes cambiar tu propio rol." };
 
-  if (role === "owner") {
-    // Owners are additive: promoting a coach must preserve existing owners.
-    const { error } = await supabase
+  const { data: existingCoach, error: lookupError } = await supabase
+    .from("club_admins")
+    .select("profile_id, role")
+    .eq("club_id", clubId)
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  if (lookupError) return { error: lookupError.message };
+
+  if (existingCoach) {
+    const { data: updatedCoach, error } = await supabase
       .from("club_admins")
-      .update({ role: "owner" })
+      .update({ role })
       .eq("club_id", clubId)
-      .eq("profile_id", profileId);
-
-    if (error) return;
-
-    revalidatePath("/club");
-    return;
+      .eq("profile_id", profileId)
+      .select("profile_id, role")
+      .maybeSingle();
+    if (error) return { error: error.message };
+    if (!updatedCoach || updatedCoach.role !== role) {
+      return { error: "No se pudo guardar el rol del entrenador." };
+    }
+  } else {
+    const { data: createdCoach, error } = await supabase
+      .from("club_admins")
+      .insert({ club_id: clubId, profile_id: profileId, role })
+      .select("profile_id, role")
+      .single();
+    if (error) return { error: error.message };
+    if (!createdCoach || createdCoach.role !== role) {
+      return { error: "No se pudo guardar el rol del entrenador." };
+    }
   }
 
-  const { error } = await supabase
-    .from("club_admins")
-    .update({ role })
-    .eq("club_id", clubId)
-    .eq("profile_id", profileId);
-  if (error) return;
-
   revalidatePath("/club");
+  return { success: true };
 }
 
 export async function setClubCoachBlocked(

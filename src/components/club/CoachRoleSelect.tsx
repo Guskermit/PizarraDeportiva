@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -10,6 +9,8 @@ import {
 } from "@/components/ui/select";
 import { setClubCoachRole } from "@/lib/actions/clubs";
 import type { ClubAdminRole } from "@/lib/supabase/database.types";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const ROLE_LABELS: Record<ClubAdminRole, string> = {
   owner: "Propietario",
@@ -29,6 +30,7 @@ export function CoachRoleSelect({
   const [value, setValue] = useState<ClubAdminRole>(role);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Sincroniza el estado local si el rol cambia en el servidor.
   useEffect(() => {
@@ -39,8 +41,14 @@ export function CoachRoleSelect({
     setValue(next);
     setSaving(true);
     setError(null);
-    await setClubCoachRole(clubId, profileId, next);
+    const result = await setClubCoachRole(clubId, profileId, next);
     setSaving(false);
+    if (result.error) {
+      setValue(role);
+      setError(result.error);
+      return;
+    }
+    router.refresh();
   }
 
   return (
