@@ -1,8 +1,8 @@
 "use client";
 
-import { TacticalBoard } from "@/components/board/TacticalBoard";
-import { PlaybackControls } from "@/components/board/PlaybackControls";
 import { CommentOverlay } from "@/components/board/CommentOverlay";
+import { PlaybackControls } from "@/components/board/PlaybackControls";
+import { TacticalBoard } from "@/components/board/TacticalBoard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addSequenceNote, deleteSequenceNote } from "@/lib/actions/plays";
@@ -228,7 +228,10 @@ export function PlayViewer({
 
   return (
     <div className="grid w-full gap-5">
-      <div ref={containerRef} className="relative">
+      <div
+        ref={containerRef}
+        className="play-viewer-shell relative aspect-[21/10] w-full overflow-hidden rounded-lg"
+      >
         <TacticalBoard
           key={isFullscreen ? "fullscreen" : "normal"}
           positions={displayedPositions}
@@ -291,7 +294,12 @@ export function PlayViewer({
                   onChange={(e) => setNoteDraft(e.target.value)}
                   placeholder="Añade un comentario para esta secuencia…"
                 />
-                <Button type="button" variant="secondary" onClick={handleAddNote} disabled={noteBusy}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddNote}
+                  disabled={noteBusy}
+                >
                   Añadir
                 </Button>
               </div>

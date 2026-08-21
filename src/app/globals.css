@@ -165,3 +165,26 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
+
+.play-viewer-shell:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+  background: var(--background);
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .play-viewer-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    width: 100vw;
+    height: 100dvh;
+    aspect-ratio: auto;
+    border-radius: 0;
+    background: var(--background);
+  }
+}
