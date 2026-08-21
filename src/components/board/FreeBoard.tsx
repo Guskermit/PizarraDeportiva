@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input";
 import { createBoardSituation, deleteBoardSituation } from "@/lib/actions/situations";
 import { buildInitialPositions, clonePositions } from "@/lib/futsal/formations";
 import type { BoardPositions } from "@/lib/supabase/database.types";
-import { ArrowLeft, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
+import { ArrowLeft, Maximize, Minimize, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const TacticalBoard = dynamic(
   () => import("@/components/board/TacticalBoard").then((module) => module.TacticalBoard),
@@ -36,11 +36,30 @@ export function FreeBoard({
   showSaveForm?: boolean;
 }) {
   const router = useRouter();
+  const boardRef = useRef<HTMLDivElement>(null);
   const initialPositions = buildInitialPositions("portero_4_jugadores", "portero_4_jugadores");
   const [positions, setPositions] = useState<BoardPositions>(clonePositions(initialPositions));
   const [history, setHistory] = useState<BoardPositions[]>([]);
   const [panelOpen, setPanelOpen] = useState(showSaveForm);
   const [name, setName] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === boardRef.current);
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    await boardRef.current?.requestFullscreen();
+  }
 
   function updatePositions(next: BoardPositions) {
     setHistory((previous) => [...previous, clonePositions(positions)]);
@@ -92,7 +111,7 @@ export function FreeBoard({
   const createAction = createBoardSituation.bind(null, positions);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
+    <div ref={boardRef} className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-3 py-2 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <Button
@@ -160,6 +179,15 @@ export function FreeBoard({
             aria-label="Cargar situación"
           >
             <Save />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+          >
+            {isFullscreen ? <Minimize /> : <Maximize />}
           </Button>
         </div>
 
