@@ -18,6 +18,15 @@ const TacticalBoard = dynamic(
   { ssr: false },
 );
 
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+};
+
 export interface BoardSituation {
   id: string;
   name: string;
@@ -46,19 +55,42 @@ export function FreeBoard({
 
   useEffect(() => {
     function handleFullscreenChange() {
-      setIsFullscreen(document.fullscreenElement === boardRef.current);
+      const fullscreenDocument = document as FullscreenDocument;
+      setIsFullscreen(
+        document.fullscreenElement === boardRef.current ||
+          fullscreenDocument.webkitFullscreenElement === boardRef.current,
+      );
     }
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
   }, []);
 
   async function toggleFullscreen() {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
+    const fullscreenDocument = document as FullscreenDocument;
+    const activeFullscreen =
+      document.fullscreenElement ?? fullscreenDocument.webkitFullscreenElement;
+    if (activeFullscreen) {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else {
+        await fullscreenDocument.webkitExitFullscreen?.();
+      }
       return;
     }
-    await boardRef.current?.requestFullscreen();
+    const board = boardRef.current as FullscreenElement | null;
+    if (board?.requestFullscreen) {
+      await board.requestFullscreen();
+    } else if (board?.webkitRequestFullscreen) {
+      await board.webkitRequestFullscreen();
+    } else {
+      // Some mobile browsers do not expose fullscreen for regular elements.
+      setIsFullscreen(true);
+    }
   }
 
   function updatePositions(next: BoardPositions) {
