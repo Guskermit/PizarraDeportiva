@@ -244,21 +244,14 @@ export async function setClubCoachRole(
   if (user?.id === profileId) return;
 
   if (role === "owner") {
-    // Transfer ownership: promote the target first (the current user is still owner,
-    // so the owner-only RLS check passes), then demote everyone else.
-    const { error: promoteError } = await supabase
+    // Owners are additive: promoting a coach must preserve existing owners.
+    const { error } = await supabase
       .from("club_admins")
       .update({ role: "owner" })
       .eq("club_id", clubId)
       .eq("profile_id", profileId);
-    if (promoteError) return;
 
-    const { error: demoteError } = await supabase
-      .from("club_admins")
-      .update({ role: "entrenador" })
-      .eq("club_id", clubId)
-      .neq("profile_id", profileId);
-    if (demoteError) return;
+    if (error) return;
 
     revalidatePath("/club");
     return;

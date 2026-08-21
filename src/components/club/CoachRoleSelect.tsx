@@ -30,7 +30,7 @@ export function CoachRoleSelect({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sincroniza el estado local si el rol cambia en el servidor (p. ej. al transferir la propiedad).
+  // Sincroniza el estado local si el rol cambia en el servidor.
   useEffect(() => {
     setValue(role);
   }, [role]);
