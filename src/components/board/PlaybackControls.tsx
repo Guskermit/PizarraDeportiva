@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { GripVertical, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GripVertical, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const SPEEDS = [0.5, 1, 1.5, 2];
 
@@ -37,6 +37,7 @@ export function PlaybackControls({
   const [pos, setPos] = useState({ x: 12, y: 12 });
   const [menuOpen, setMenuOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const controlsRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(
     null,
   );
@@ -93,8 +94,13 @@ export function PlaybackControls({
     const drag = dragRef.current;
     if (!drag) return;
     const container = containerRef.current;
-    const maxX = container ? Math.max(0, container.clientWidth - 56) : Number.POSITIVE_INFINITY;
-    const maxY = container ? Math.max(0, container.clientHeight - 56) : Number.POSITIVE_INFINITY;
+    const controls = controlsRef.current;
+    const maxX = container
+      ? Math.max(0, container.clientWidth - (controls?.offsetWidth ?? 56))
+      : Number.POSITIVE_INFINITY;
+    const maxY = container
+      ? Math.max(0, container.clientHeight - (controls?.offsetHeight ?? 56))
+      : Number.POSITIVE_INFINITY;
     setPos({
       x: Math.min(Math.max(0, drag.originX + (e.clientX - drag.startX)), maxX),
       y: Math.min(Math.max(0, drag.originY + (e.clientY - drag.startY)), maxY),
@@ -110,7 +116,8 @@ export function PlaybackControls({
 
   return (
     <div
-      className="absolute z-10 flex w-12 flex-col items-center gap-1 rounded-xl border bg-background/50 p-1.5 shadow-lg backdrop-blur"
+      ref={controlsRef}
+      className="playback-controls absolute z-10 flex w-12 flex-col items-center gap-1 rounded-xl border bg-background/50 p-1.5 shadow-lg backdrop-blur"
       style={{ left: pos.x, top: pos.y }}
     >
       <div
@@ -215,7 +222,7 @@ export function PlaybackControls({
         {isFullscreen ? <Minimize /> : <Maximize />}
       </Button>
 
-      <div className="mt-1 flex w-full flex-col items-center gap-0.5 border-t pt-1">
+      <div className="playback-speed-controls mt-1 flex w-full flex-col items-center gap-0.5 border-t pt-1">
         {SPEEDS.map((s) => (
           <button
             key={s}

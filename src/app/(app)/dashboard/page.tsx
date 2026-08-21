@@ -64,7 +64,7 @@ function StatCard({
     return (
       <Link
         href={href}
-        className="card-glow min-w-48 flex-1 rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="card-glow min-w-0 flex-1 rounded-xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-w-48"
       >
         <Card className="h-full border-transparent shadow-none">{content}</Card>
       </Link>
@@ -72,7 +72,7 @@ function StatCard({
   }
 
   return (
-    <Card className="card-glow min-w-48 flex-1">
+    <Card className="card-glow min-w-0 flex-1 sm:min-w-48">
       {content}
     </Card>
   );
@@ -133,7 +133,7 @@ async function ClubStats({ clubId }: { clubId: string }) {
   return (
     <div className="grid w-full gap-4">
       <div className="flex flex-wrap gap-4">
-        <StatCard icon={Users} label="Equipos" value={teamCount ?? 0} color="primary" href="/teams" />
+        <StatCard icon={Users} label="Equipos" value={teamCount ?? 0} color="primary" href="/club" />
         <StatCard
           icon={ClipboardList}
           label="Jugadas totales"
@@ -235,7 +235,7 @@ export default async function DashboardPage() {
 
       {isClubAdmin && (
         <div className="grid w-full gap-4">
-          <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex w-full flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-2">
               <span
                 className="size-2.5 rounded-full"
@@ -243,14 +243,14 @@ export default async function DashboardPage() {
               />
               <h2 className="text-lg font-semibold">{adminClubs![0].clubs.name}</h2>
             </div>
-            <div className="flex gap-3">
+            <div className="flex w-full flex-wrap gap-3 sm:w-auto">
               {isOwner && (
                 <Button variant="secondary" render={<Link href="/club" />}>
                   <ShieldCheck />
                   Editar club
                 </Button>
               )}
-              <Button variant="secondary" render={<Link href="/teams" />}>
+              <Button variant="secondary" render={<Link href="/club" />}>
                 <Users />
                 Gestionar equipos
               </Button>
@@ -264,9 +264,9 @@ export default async function DashboardPage() {
       {isCoach && (
         <Card>
           <CardContent className="grid gap-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <h2 className="text-lg font-semibold">Equipos que entrenas</h2>
-              <div className="flex gap-3">
+              <div className="flex w-full flex-wrap gap-3 sm:w-auto">
                 <Button variant="secondary" size="sm" render={<Link href="/plays" />}>
                   Ver catálogo
                 </Button>
@@ -281,7 +281,7 @@ export default async function DashboardPage() {
                 const team = t.teams as unknown as { id: string; name: string; category: string | null };
                 return (
                   <Link key={team.id} href={`/teams/${team.id}`}>
-                    <Card className="min-w-48">
+                    <Card className="min-w-0 sm:min-w-48">
                       <CardContent className="grid gap-2">
                         <Users className="size-4 text-primary" />
                         <span className="font-medium">{team.name}</span>
@@ -301,7 +301,7 @@ export default async function DashboardPage() {
       {playerTeams && playerTeams.length > 0 && (
         <Card>
           <CardContent className="grid gap-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
               <h2 className="text-lg font-semibold">Tus equipos como jugador</h2>
               <Button variant="secondary" size="sm" render={<Link href="/plays" />}>
                 Ver jugadas compartidas
@@ -311,7 +311,7 @@ export default async function DashboardPage() {
               {playerTeams.map((t, i) => {
                 const team = t.teams as unknown as { id: string; name: string };
                 return (
-                  <Card key={team?.id ?? i} className="min-w-48">
+                  <Card key={team?.id ?? i} className="min-w-0 sm:min-w-48">
                     <CardContent>
                       <span className="font-medium">{team?.name}</span>
                     </CardContent>

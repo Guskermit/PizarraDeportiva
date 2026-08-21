@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ShieldCheck,
-  Users,
   ClipboardList,
   LogOut,
   Menu,
@@ -205,7 +204,6 @@ export function AppSidebar({
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
     ...(isClubAdmin ? [{ href: "/club", label: "Club", icon: ShieldCheck }] : []),
-    { href: "/teams", label: "Equipos", icon: Users },
     { href: "/plays", label: "Jugadas", icon: ClipboardList },
   ];
 

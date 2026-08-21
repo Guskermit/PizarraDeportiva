@@ -188,3 +188,25 @@
     background: var(--background);
   }
 }
+
+@media (max-width: 767px) and (orientation: portrait) {
+  .playback-controls {
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .playback-controls > .relative {
+    width: auto;
+  }
+
+  .playback-speed-controls {
+    width: auto;
+    flex-direction: row;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+    padding-top: 0;
+    padding-left: 0.25rem;
+  }
+}

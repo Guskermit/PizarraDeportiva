@@ -6,11 +6,11 @@ import { SubmitButton } from "@/components/forms/SubmitButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save } from "lucide-react";
 import { updatePlayDetails } from "@/lib/actions/plays";
 import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { ChevronDown, Save } from "lucide-react";
 import { notFound } from "next/navigation";
 
 interface EditNote {
@@ -81,7 +81,7 @@ export default async function EditPlayPage({
             <div className="grid gap-1">
               <h1 className="text-2xl font-semibold">{play.title}</h1>
               <p className="text-muted-foreground">
-                {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]} ·
+                {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]}{" "}
                 Visitante: {FORMATION_LABELS[play.away_formation]}
               </p>
             </div>
@@ -91,36 +91,39 @@ export default async function EditPlayPage({
           </div>
 
           <Card className="max-w-5xl">
-            <CardHeader>
-              <CardTitle>Detalles de la jugada</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="title">Título de la jugada</Label>
-                  <Input id="title" name="title" defaultValue={play.title} required />
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-(--card-spacing) outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                <CardTitle>Detalles de la jugada</CardTitle>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <CardContent className="pt-(--card-spacing)">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="title">Título de la jugada</Label>
+                    <Input id="title" name="title" defaultValue={play.title} required />
+                  </div>
+                  <ClientSelectField
+                    id="playType"
+                    name="playType"
+                    label="Tipo de jugada"
+                    options={playTypeOptions}
+                    defaultValue={play.play_type}
+                  />
+                  <ClientColorInput
+                    id="homeColor"
+                    name="homeColor"
+                    label="Color equipo local"
+                    defaultValue={play.home_color}
+                  />
+                  <ClientColorInput
+                    id="awayColor"
+                    name="awayColor"
+                    label="Color equipo visitante"
+                    defaultValue={play.away_color}
+                  />
                 </div>
-                <ClientSelectField
-                  id="playType"
-                  name="playType"
-                  label="Tipo de jugada"
-                  options={playTypeOptions}
-                  defaultValue={play.play_type}
-                />
-                <ClientColorInput
-                  id="homeColor"
-                  name="homeColor"
-                  label="Color equipo local"
-                  defaultValue={play.home_color}
-                />
-                <ClientColorInput
-                  id="awayColor"
-                  name="awayColor"
-                  label="Color equipo visitante"
-                  defaultValue={play.away_color}
-                />
-              </div>
-            </CardContent>
+              </CardContent>
+            </details>
           </Card>
         </div>
       </ActionForm>

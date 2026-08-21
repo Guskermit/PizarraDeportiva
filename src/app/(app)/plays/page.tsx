@@ -1,27 +1,30 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { FlatTable } from "@/components/FlatTable";
+import { ShareForm } from "@/components/forms/ShareForm";
+import { SubmitButton } from "@/components/forms/SubmitButton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { copyPlayToCatalog } from "@/lib/actions/plays";
 import { PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
-import { SubmitButton } from "@/components/forms/SubmitButton";
-import { ShareForm } from "@/components/forms/ShareForm";
-import { FlatTable } from "@/components/FlatTable";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials, cn } from "@/lib/utils";
-import { getClubCoaches, type ClubCoach } from "@/lib/supabase/queries";
+import { type ClubCoach, getClubCoaches } from "@/lib/supabase/queries";
+import { createClient } from "@/lib/supabase/server";
+import { cn, getInitials } from "@/lib/utils";
+import { ArrowRight, CheckCircle2, Copy, Edit3, Eye, Pencil } from "lucide-react";
+import Link from "next/link";
 
 function StatusPill({ status }: { status: string }) {
   const ready = status === "ready";
+  const label = ready ? "Finalizada" : "Borrador";
   return (
     <span
+      title={label}
+      aria-label={label}
       className={cn(
-        "inline-flex w-fit items-center gap-2 rounded-full px-3 py-1 text-xs",
-        ready ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        "inline-flex size-7 items-center justify-center gap-2 rounded-full px-0 py-1 text-xs sm:h-auto sm:w-fit sm:px-3",
+        ready ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
       )}
     >
-      <span className={cn("size-1.5 shrink-0 rounded-full", ready ? "bg-primary" : "bg-muted-foreground")} />
-      {ready ? "Finalizada" : "Borrador"}
+      {ready ? <CheckCircle2 className="size-3.5" /> : <Edit3 className="size-3.5" />}
+      <span className="hidden sm:inline">{label}</span>
     </span>
   );
 }
@@ -37,12 +40,11 @@ export default async function PlaysPage() {
     .select("*")
     .order("updated_at", { ascending: false });
 
-  const { data: directShares } = await supabase
-    .from("play_shares")
-    .select("play_id, can_copy")
-    .eq("shared_with_profile_id", user!.id);
+  const { data: visibleShares } = await supabase.from("play_shares").select("play_id, can_copy");
 
-  const copyablePlayIds = new Set((directShares ?? []).filter((s) => s.can_copy).map((s) => s.play_id));
+  const copyablePlayIds = new Set(
+    (visibleShares ?? []).filter((s) => s.can_copy).map((s) => s.play_id),
+  );
 
   const myPlays = (plays ?? []).filter((p) => p.owner_coach_id === user!.id);
   const sharedPlays = (plays ?? []).filter((p) => p.owner_coach_id !== user!.id);
@@ -96,11 +98,23 @@ export default async function PlaysPage() {
               </span>,
               <StatusPill key="status" status={play.status} />,
               <div key="actions" className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" render={<Link href={`/plays/${play.id}/edit`} />}>
-                  Editar
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  render={<Link href={`/plays/${play.id}/edit`} />}
+                  title="Editar"
+                  aria-label="Editar"
+                >
+                  <Pencil />
                 </Button>
-                <Button variant="tertiary" size="sm" render={<Link href={`/plays/${play.id}/view`} />}>
-                  Ver
+                <Button
+                  variant="tertiary"
+                  size="icon-sm"
+                  render={<Link href={`/plays/${play.id}/view`} />}
+                  title="Ver"
+                  aria-label="Ver"
+                >
+                  <Eye />
                 </Button>
                 <ShareForm playId={play.id} coaches={coachesByClub[play.club_id] ?? []} />
               </div>,
@@ -133,8 +147,14 @@ export default async function PlaysPage() {
                 {PLAY_TYPE_LABELS[play.play_type]}
               </span>,
               <div key="actions" className="flex flex-wrap items-center gap-2">
-                <Button variant="secondary" size="sm" render={<Link href={`/plays/${play.id}/view`} />}>
-                  Ver
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  render={<Link href={`/plays/${play.id}/view`} />}
+                  title="Ver"
+                  aria-label="Ver"
+                >
+                  <Eye />
                 </Button>
                 {copyablePlayIds.has(play.id) && (
                   <form
@@ -143,8 +163,13 @@ export default async function PlaysPage() {
                       await copyPlayToCatalog(play.id);
                     }}
                   >
-                    <SubmitButton variant="tertiary" size="sm">
-                      Copiar a mi catálogo
+                    <SubmitButton
+                      variant="tertiary"
+                      size="icon-sm"
+                      title="Copiar a mi catálogo"
+                      aria-label="Copiar a mi catálogo"
+                    >
+                      <Copy />
                     </SubmitButton>
                   </form>
                 )}

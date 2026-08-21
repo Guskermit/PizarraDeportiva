@@ -13,6 +13,7 @@ import {
   reopenPlay,
   saveInitialPositions,
   saveSequence,
+  updateSequence,
 } from "@/lib/actions/plays";
 import { clonePositions } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPoint, BoardPositions } from "@/lib/supabase/database.types";
@@ -37,6 +38,37 @@ function distance(a: BoardPoint, b: BoardPoint) {
 
 function moveKey(move: Pick<BoardMove, "type" | "playerId">) {
   return move.type === "ball" ? "ball" : `player:${move.playerId}`;
+}
+
+function cloneMoves(moves: BoardMove[]) {
+  return JSON.parse(JSON.stringify(moves)) as BoardMove[];
+}
+
+function getPlayerPosition(positions: BoardPositions, team: "home" | "away", playerId: string) {
+  return positions[team].find((player) => player.id === playerId);
+}
+
+function prepareSequence(sequence: Sequence, startPositions: BoardPositions) {
+  const moves = cloneMoves(sequence.moves);
+  const positions = clonePositions(startPositions);
+
+  for (const move of moves) {
+    if (move.type === "ball") {
+      move.from = { ...positions.ball };
+      positions.ball = { ...move.to };
+      continue;
+    }
+
+    if (!move.team || !move.playerId) continue;
+    const player = getPlayerPosition(positions, move.team, move.playerId);
+    if (!player) continue;
+    move.from = { x: player.x, y: player.y };
+    player.x = move.to.x;
+    player.y = move.to.y;
+    if (move.hasBall) positions.ball = { ...move.to };
+  }
+
+  return { moves, positions };
 }
 
 interface Sequence {
@@ -68,6 +100,7 @@ export function TacticalEditor({
   const [initialPos, setInitialPos] = useState(initialPositions);
   const [sequences, setSequences] = useState<Sequence[]>(savedSequences);
   const [pendingMoves, setPendingMoves] = useState<BoardMove[]>([]);
+  const [editingSequenceIndex, setEditingSequenceIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [playStatus, setPlayStatus] = useState(status);
   const [isPending, startTransition] = useTransition();
@@ -75,9 +108,19 @@ export function TacticalEditor({
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteBusy, setNoteBusy] = useState(false);
 
+  const sequenceStartPositions = useMemo(() => {
+    if (editingSequenceIndex === null || editingSequenceIndex === 0) return initialPos;
+    return sequences[editingSequenceIndex - 1]?.positions ?? initialPos;
+  }, [editingSequenceIndex, initialPos, sequences]);
+
   const baseline = useMemo(
-    () => (sequences.length > 0 ? sequences[sequences.length - 1].positions : initialPos),
-    [sequences, initialPos],
+    () =>
+      editingSequenceIndex === null
+        ? sequences.length > 0
+          ? sequences[sequences.length - 1].positions
+          : initialPos
+        : (sequences[editingSequenceIndex]?.positions ?? initialPos),
+    [editingSequenceIndex, sequences, initialPos],
   );
 
   const [workingPositions, setWorkingPositions] = useState<BoardPositions>(
@@ -92,13 +135,19 @@ export function TacticalEditor({
     });
   }
 
+  function findPendingMove(move: Pick<BoardMove, "type" | "playerId">) {
+    return pendingMoves.find((pending) => moveKey(pending) === moveKey(move));
+  }
+
   function handlePlayerDragEnd(team: "home" | "away", playerId: string, pos: BoardPoint) {
     const list = team === "home" ? workingPositions.home : workingPositions.away;
     const player = list.find((p) => p.id === playerId);
     if (!player) return;
 
-    const from = { x: player.x, y: player.y };
-    const hasBall = !locked ? false : distance(from, workingPositions.ball) <= POSSESSION_THRESHOLD;
+    const existingMove = findPendingMove({ type: "player", playerId });
+    const from = existingMove?.from ?? { x: player.x, y: player.y };
+    const startBall = sequenceStartPositions.ball;
+    const hasBall = !locked ? false : distance(from, startBall) <= POSSESSION_THRESHOLD;
 
     setWorkingPositions((prevState) => {
       const next = clonePositions(prevState);
@@ -114,15 +163,32 @@ export function TacticalEditor({
     });
 
     if (locked) {
-      applyPendingMove({ type: "player", team, playerId, from, to: pos, curve: null, hasBall });
+      applyPendingMove({
+        ...(existingMove ?? {}),
+        type: "player",
+        team,
+        playerId,
+        from,
+        to: pos,
+        curve: null,
+        hasBall,
+      });
     }
   }
 
   function handleBallDragEnd(pos: BoardPoint) {
-    const from = { x: workingPositions.ball.x, y: workingPositions.ball.y };
+    const existingMove = findPendingMove({ type: "ball" });
+    const from = existingMove?.from ?? sequenceStartPositions.ball;
     setWorkingPositions((prevState) => ({ ...clonePositions(prevState), ball: pos }));
     if (locked) {
-      applyPendingMove({ type: "ball", from, to: pos, curve: null, hasBall: false });
+      applyPendingMove({
+        ...(existingMove ?? {}),
+        type: "ball",
+        from,
+        to: pos,
+        curve: null,
+        hasBall: false,
+      });
     }
   }
 
@@ -150,6 +216,25 @@ export function TacticalEditor({
     }
     setError(null);
     startTransition(async () => {
+      if (editingSequenceIndex !== null) {
+        const sequence = sequences[editingSequenceIndex];
+        const result = await updateSequence(sequence.id, playId, workingPositions, pendingMoves);
+        if (result?.error) {
+          setError(result.error);
+          return;
+        }
+        setSequences((prev) =>
+          prev.map((item, index) =>
+            index === editingSequenceIndex
+              ? { ...item, positions: clonePositions(workingPositions), moves: pendingMoves }
+              : item,
+          ),
+        );
+        setEditingSequenceIndex(null);
+        setPendingMoves([]);
+        return;
+      }
+
       const orderIndex = sequences.length;
       const result = await saveSequence(playId, orderIndex, workingPositions, pendingMoves);
       if (result?.error) {
@@ -168,6 +253,25 @@ export function TacticalEditor({
       ]);
       setPendingMoves([]);
     });
+  }
+
+  function handleSelectSequence(index: number) {
+    if (isPending) return;
+    setError(null);
+    setEditingSequenceIndex(index);
+    const startPositions = index === 0 ? initialPos : sequences[index - 1].positions;
+    const prepared = prepareSequence(sequences[index], startPositions);
+    setPendingMoves(prepared.moves);
+    setWorkingPositions(prepared.positions);
+  }
+
+  function handleNewSequence() {
+    if (isPending) return;
+    setError(null);
+    setEditingSequenceIndex(null);
+    setPendingMoves([]);
+    const lastPositions = sequences[sequences.length - 1]?.positions ?? initialPos;
+    setWorkingPositions(clonePositions(lastPositions));
   }
 
   function handleUndoLastSequence() {
@@ -281,18 +385,20 @@ export function TacticalEditor({
         )}
       </div>
 
-      <TacticalBoard
-        positions={workingPositions}
-        moves={locked ? pendingMoves : []}
-        homeColor={homeColor}
-        awayColor={awayColor}
-        interactivePlayers={playStatus === "draft"}
-        interactiveBall={playStatus === "draft"}
-        interactiveCurves={locked && playStatus === "draft"}
-        onPlayerDragEnd={handlePlayerDragEnd}
-        onBallDragEnd={handleBallDragEnd}
-        onCurveChange={handleCurveChange}
-      />
+      <div className="relative aspect-[21/10] w-full overflow-hidden rounded-lg">
+        <TacticalBoard
+          positions={workingPositions}
+          moves={locked ? pendingMoves : []}
+          homeColor={homeColor}
+          awayColor={awayColor}
+          interactivePlayers={playStatus === "draft"}
+          interactiveBall={playStatus === "draft"}
+          interactiveCurves={locked && playStatus === "draft"}
+          onPlayerDragEnd={handlePlayerDragEnd}
+          onBallDragEnd={handleBallDragEnd}
+          onCurveChange={handleCurveChange}
+        />
+      </div>
 
       {playStatus === "draft" && (
         <div className="flex flex-wrap gap-3">
@@ -306,8 +412,15 @@ export function TacticalEditor({
             <>
               <Button onClick={handleSaveSequence} disabled={isPending}>
                 {isPending && <Loader2 className="animate-spin" />}
-                Guardar secuencia ({sequences.length + 1})
+                {editingSequenceIndex === null
+                  ? `Guardar secuencia (${sequences.length + 1})`
+                  : `Guardar cambios · Secuencia ${editingSequenceIndex + 1}`}
               </Button>
+              {editingSequenceIndex !== null && (
+                <Button variant="secondary" onClick={handleNewSequence} disabled={isPending}>
+                  Nueva secuencia
+                </Button>
+              )}
               {sequences.length > 0 && (
                 <Button variant="secondary" onClick={handleUndoLastSequence} disabled={isPending}>
                   {isPending && <Loader2 className="animate-spin" />}
@@ -330,10 +443,23 @@ export function TacticalEditor({
             {sequences.map((s) => {
               const notes = (s.notes ?? []) as SequenceNote[];
               return (
-                <div key={s.id} className="grid gap-2 rounded-lg border p-3">
-                  <Badge variant="secondary" className="w-fit">
-                    Secuencia {s.order_index + 1}
-                  </Badge>
+                <div
+                  key={s.id}
+                  className={`grid gap-2 rounded-lg border p-3 ${
+                    editingSequenceIndex === sequences.indexOf(s) ? "border-primary" : ""
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className="flex w-fit items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                    onClick={() => handleSelectSequence(sequences.indexOf(s))}
+                    aria-label={`Editar secuencia ${s.order_index + 1}`}
+                  >
+                    <Badge variant="secondary">Secuencia {s.order_index + 1}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {s.moves.length} movimiento{s.moves.length === 1 ? "" : "s"}
+                    </span>
+                  </button>
                   <div className="grid gap-2">
                     {notes.length > 0 && (
                       <ul className="grid gap-1.5">

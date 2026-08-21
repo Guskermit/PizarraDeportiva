@@ -1,7 +1,5 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
-import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -11,12 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 
 export type FlatTableColumn = {
   key: string;
   label: string;
   /** CSS width for the column; omit to let it grow to fill remaining space. */
   width?: string;
+  hideOnMobile?: boolean;
+  mobileLabel?: string;
 };
 
 export type FlatTableRow = {
@@ -71,9 +74,19 @@ export function FlatTable({
                 <TableHead
                   key={col.key}
                   style={col.width ? { width: col.width } : undefined}
-                  className="text-[0.7rem] tracking-wider text-muted-foreground uppercase"
+                  className={cn(
+                    "text-[0.7rem] tracking-wider text-muted-foreground uppercase",
+                    col.hideOnMobile && "hidden sm:table-cell",
+                  )}
                 >
-                  {col.label}
+                  {col.mobileLabel ? (
+                    <>
+                      <span className="sm:hidden">{col.mobileLabel}</span>
+                      <span className="hidden sm:inline">{col.label}</span>
+                    </>
+                  ) : (
+                    col.label
+                  )}
                 </TableHead>
               ))}
             </TableRow>
@@ -81,7 +94,10 @@ export function FlatTable({
           <TableBody>
             {filteredRows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={columns.length}
+                  className="py-8 text-center text-muted-foreground"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -92,7 +108,10 @@ export function FlatTable({
                     <TableCell
                       key={j}
                       style={columns[j]?.width ? { width: columns[j].width } : undefined}
-                      className="whitespace-normal"
+                      className={cn(
+                        "whitespace-normal",
+                        columns[j]?.hideOnMobile && "hidden sm:table-cell",
+                      )}
                     >
                       {cell}
                     </TableCell>

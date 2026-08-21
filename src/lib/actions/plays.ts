@@ -8,8 +8,8 @@ import type {
   PlayType,
   TeamFormation,
 } from "@/lib/supabase/database.types";
-import { createClient } from "@/lib/supabase/server";
 import { getClubCoaches } from "@/lib/supabase/queries";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -122,6 +122,23 @@ export async function saveSequence(
   if (error) return { error: error.message };
   revalidatePath(`/plays/${playId}/edit`);
   return { success: true, sequenceId: data?.id };
+}
+
+export async function updateSequence(
+  sequenceId: string,
+  playId: string,
+  positions: BoardPositions,
+  moves: BoardMove[],
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("play_sequences")
+    .update({ positions, moves })
+    .eq("id", sequenceId);
+  if (error) return { error: error.message };
+  revalidatePath(`/plays/${playId}/edit`);
+  revalidatePath(`/plays/${playId}/view`);
+  return { success: true };
 }
 
 export async function finalizePlay(playId: string) {

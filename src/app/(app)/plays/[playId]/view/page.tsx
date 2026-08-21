@@ -1,7 +1,10 @@
 import { PlayViewerClient } from "@/components/board/PlayViewerLoader";
+import { Button } from "@/components/ui/button";
 import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 interface ViewNote {
@@ -58,12 +61,23 @@ export default async function ViewPlayPage({
 
   return (
     <div className="grid w-full gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold">{play.title}</h1>
-        <p className="text-muted-foreground">
-          {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]} ·
-          Visitante: {FORMATION_LABELS[play.away_formation]}
-        </p>
+      <div className="flex items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          render={<Link href="/plays" />}
+          title="Volver a jugadas"
+          aria-label="Volver a jugadas"
+        >
+          <ArrowLeft />
+        </Button>
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold">{play.title}</h1>
+          <p className="text-muted-foreground">
+            {PLAY_TYPE_LABELS[play.play_type]} · Local: {FORMATION_LABELS[play.home_formation]} ·
+            Visitante: {FORMATION_LABELS[play.away_formation]}
+          </p>
+        </div>
       </div>
 
       <PlayViewerClient

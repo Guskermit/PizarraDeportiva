@@ -205,9 +205,9 @@ export default async function ClubPage() {
         <FlatTable
           columns={[
             { key: "coach", label: "Entrenador" },
-            { key: "email", label: "Email" },
+            { key: "email", label: "Email", hideOnMobile: true },
             { key: "role", label: "Rol", width: "7rem" },
-            { key: "teams", label: "Equipos", width: "14rem" },
+            { key: "teams", label: "Equipos", width: "14rem", hideOnMobile: true },
             { key: "actions", label: "Acciones", width: "auto" },
           ]}
           searchPlaceholder="Buscar entrenadores..."
@@ -317,9 +317,9 @@ export default async function ClubPage() {
         <FlatTable
           columns={[
             { key: "team", label: "Equipo" },
-            { key: "category", label: "Categoría", width: "10rem" },
-            { key: "coaches", label: "Entrenadores", width: "8rem" },
-            { key: "players", label: "Jugadores", width: "8rem" },
+            { key: "category", label: "Categoría", width: "10rem", hideOnMobile: true },
+            { key: "coaches", label: "Entrenadores", mobileLabel: "Entr." },
+            { key: "players", label: "Jugadores", mobileLabel: "Jug." },
             { key: "actions", label: "Acciones", width: "auto" },
           ]}
           searchPlaceholder="Buscar equipos..."

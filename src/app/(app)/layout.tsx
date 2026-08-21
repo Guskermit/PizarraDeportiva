@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userName={fullName}
         isClubAdmin={isClubAdmin}
       />
-      <div className="flex w-full flex-col overflow-y-auto">
+      <div className="flex min-w-0 w-full flex-col overflow-x-hidden overflow-y-auto">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-background/80 px-4 py-3 backdrop-blur md:px-8">
           <div className="grid gap-0.5">
             <p className="text-sm font-medium">Hola, {firstName} 👋</p>
@@ -68,8 +68,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Avatar>
           </div>
         </header>
-        <div className="flex w-full flex-col items-center gap-6 p-4 md:p-8">
-          <div className="w-full max-w-5xl">{children}</div>
+        <div className="flex min-w-0 w-full flex-col items-center gap-6 p-4 md:p-8">
+          <div className="min-w-0 w-full max-w-5xl">{children}</div>
         </div>
       </div>
     </div>
