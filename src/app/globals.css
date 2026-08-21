@@ -166,6 +166,17 @@
   scrollbar-color: var(--border) transparent;
 }
 
+.free-board-fullscreen {
+  width: 100vw;
+  min-height: 100svh;
+  height: 100dvh;
+  height: -webkit-fill-available;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
 .play-viewer-shell:fullscreen {
   display: flex;
   align-items: center;

@@ -1,8 +1,8 @@
 import "@/app/globals.css";
 
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
+import { Geist } from "next/font/google";
 
 import { baseURL, meta } from "@/resources/seo";
 
@@ -24,6 +24,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,4 +45,3 @@ export default function RootLayout({
     </html>
   );
 }
-

@@ -153,7 +153,12 @@ export function FreeBoard({
   const createAction = createBoardSituation.bind(null, positions);
 
   return (
-    <div ref={boardRef} className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background">
+    <div
+      ref={boardRef}
+      className={`free-board-shell fixed inset-0 z-50 flex flex-col overflow-hidden bg-background ${
+        isFullscreen ? "free-board-fullscreen" : ""
+      }`}
+    >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-3 py-2 sm:px-5">
         <div className="flex min-w-0 items-center gap-2">
           <Button
