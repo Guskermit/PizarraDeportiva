@@ -82,15 +82,25 @@ export function FreeBoard({
       }
       return;
     }
-    const board = boardRef.current as FullscreenElement | null;
-    if (board?.requestFullscreen) {
-      await board.requestFullscreen();
-    } else if (board?.webkitRequestFullscreen) {
-      await board.webkitRequestFullscreen();
-    } else {
-      // Some mobile browsers do not expose fullscreen for regular elements.
-      setIsFullscreen(true);
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      return;
     }
+    const board = boardRef.current as FullscreenElement | null;
+    try {
+      if (board?.requestFullscreen) {
+        await board.requestFullscreen();
+        return;
+      }
+      if (board?.webkitRequestFullscreen) {
+        await board.webkitRequestFullscreen();
+        return;
+      }
+    } catch {
+      // iOS Safari can expose the API but reject fullscreen for regular elements.
+    }
+    // Keep the board in an immersive viewport mode where native fullscreen is unavailable.
+    setIsFullscreen(true);
   }
 
   function updatePositions(next: BoardPositions) {
