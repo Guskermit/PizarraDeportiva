@@ -113,7 +113,9 @@ export function TacticalEditor({
   const [noteBusy, setNoteBusy] = useState(false);
 
   const sequenceStartPositions = useMemo(() => {
-    if (editingSequenceIndex === null || editingSequenceIndex === 0) return initialPos;
+    if (editingSequenceIndex === null || editingSequenceIndex === 0) {
+      return sequences.length > 0 ? sequences[sequences.length - 1].positions : initialPos;
+    }
     return sequences[editingSequenceIndex - 1]?.positions ?? initialPos;
   }, [editingSequenceIndex, initialPos, sequences]);
 
