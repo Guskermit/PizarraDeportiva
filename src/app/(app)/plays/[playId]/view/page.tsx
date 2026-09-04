@@ -2,6 +2,7 @@ import { PlayViewerClient } from "@/components/board/PlayViewerLoader";
 import { Button } from "@/components/ui/button";
 import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
+import { getBoardColors } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -47,6 +48,8 @@ export default async function ViewPlayPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  const boardColors = await getBoardColors();
+
   const mappedSequences = ((sequences ?? []) as unknown as ViewSequence[]).map((seq) => ({
     ...seq,
     notes: (seq.notes ?? []).map((note) => ({
@@ -86,6 +89,8 @@ export default async function ViewPlayPage({
         sequences={mappedSequences}
         homeColor={play.home_color}
         awayColor={play.away_color}
+        courtColor={boardColors.courtColor}
+        logoUrl={boardColors.logoUrl}
         currentUserId={user?.id ?? null}
       />
     </div>

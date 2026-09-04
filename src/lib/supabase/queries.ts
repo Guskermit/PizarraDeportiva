@@ -34,6 +34,7 @@ export type MyClub = {
     logo_url: string | null;
     primary_color: string;
     secondary_color: string;
+    court_color: string;
   };
 };
 
@@ -46,7 +47,7 @@ export async function getMyClubs(): Promise<MyClub[]> {
 
   const { data } = await supabase
     .from("club_admins")
-    .select("role, clubs(id, name, slug, logo_url, primary_color, secondary_color)")
+    .select("role, clubs(id, name, slug, logo_url, primary_color, secondary_color, court_color)")
     .eq("profile_id", user.id);
 
   return (data ?? []) as unknown as MyClub[];
@@ -77,7 +78,7 @@ export async function getBoardColors() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316" };
+  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null as string | null };
 
   const { data: adminMembership } = await adminSupabase
     .from("club_admins")
@@ -122,16 +123,18 @@ export async function getBoardColors() {
       : undefined;
   }
 
-  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316" };
+  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null as string | null };
   const { data: club } = await adminSupabase
     .from("clubs")
-    .select("primary_color, secondary_color")
+    .select("primary_color, secondary_color, court_color, logo_url")
     .eq("id", clubId)
     .single();
 
   return {
     homeColor: club?.primary_color ?? "#1d4ed8",
     awayColor: club?.secondary_color ?? "#f97316",
+    courtColor: club?.court_color ?? "#15803d",
+    logoUrl: club?.logo_url ?? null,
   };
 }
 

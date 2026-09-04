@@ -72,6 +72,7 @@ export interface Database {
           logo_url: string | null;
           primary_color: string;
           secondary_color: string;
+          court_color: string;
           created_by: string;
           created_at: string;
         };

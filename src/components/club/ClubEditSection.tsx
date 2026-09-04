@@ -5,12 +5,14 @@ import { Pencil } from "lucide-react";
 import { ActionForm, type ActionState } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { ClientColorInput } from "@/components/forms/ClientColorInput";
+import { ClientSelectField } from "@/components/forms/ClientSelectField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import { COURT_COLOR_PRESETS } from "@/lib/futsal/formations";
 
 export function ClubEditSection({
   club,
@@ -25,6 +27,7 @@ export function ClubEditSection({
     logo_url: string | null;
     primary_color: string;
     secondary_color: string;
+    court_color: string;
   };
   roleLabel: string;
   canEdit?: boolean;
@@ -87,6 +90,15 @@ export function ClubEditSection({
                     name="secondaryColor"
                     label="Color secundario (equipo visitante)"
                     defaultValue={club.secondary_color}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <ClientSelectField
+                    id="courtColor"
+                    name="courtColor"
+                    label="Color de la pista"
+                    options={COURT_COLOR_PRESETS.map((p) => ({ value: p.value, label: p.label }))}
+                    defaultValue={club.court_color}
                   />
                 </div>
                 <div className="mt-2">

@@ -136,6 +136,8 @@ export default async function EditPlayPage({
         savedSequences={mappedSequences}
         homeColor={boardColors.homeColor}
         awayColor={boardColors.awayColor}
+        courtColor={boardColors.courtColor}
+        logoUrl={boardColors.logoUrl}
         status={play.status}
         currentUserId={user?.id ?? null}
       />

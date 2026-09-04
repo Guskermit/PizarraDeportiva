@@ -43,6 +43,8 @@ export function PlayViewer({
   sequences,
   homeColor,
   awayColor,
+  courtColor,
+  logoUrl,
   currentUserId,
 }: {
   playId: string;
@@ -50,6 +52,8 @@ export function PlayViewer({
   sequences: Sequence[];
   homeColor: string;
   awayColor: string;
+  courtColor?: string;
+  logoUrl?: string | null;
   currentUserId?: string | null;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
@@ -237,6 +241,8 @@ export function PlayViewer({
           positions={displayedPositions}
           homeColor={homeColor}
           awayColor={awayColor}
+          courtColor={courtColor}
+          logoUrl={logoUrl}
         />
         <PlaybackControls
           currentStep={currentStep}

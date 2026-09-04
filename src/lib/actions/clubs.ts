@@ -22,6 +22,7 @@ export async function registerClub(
   const clubName = String(formData.get("clubName") ?? "").trim();
   const primaryColor = String(formData.get("primaryColor") ?? "#1d4ed8");
   const secondaryColor = String(formData.get("secondaryColor") ?? "#f97316");
+  const courtColor = String(formData.get("courtColor") ?? "#15803d");
   const adminName = String(formData.get("adminName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -76,7 +77,8 @@ export async function registerClub(
     slug,
     logo_url: logoUrl,
     primary_color: primaryColor,
-    secondary_color: secondaryColor,
+    sourt_color: courtColor,
+    cecondary_color: secondaryColor,
     created_by: userId,
   });
 
@@ -101,6 +103,7 @@ export async function updateClub(
   const name = String(formData.get("name") ?? "").trim();
   const primaryColor = String(formData.get("primaryColor") ?? "#1d4ed8");
   const secondaryColor = String(formData.get("secondaryColor") ?? "#f97316");
+  const courtColor = String(formData.get("courtColor") ?? "#15803d");
   const logo = formData.get("logo") as File | null;
 
   if (!name) return { error: "El nombre del club es obligatorio." };
@@ -111,11 +114,13 @@ export async function updateClub(
     name: string;
     primary_color: string;
     secondary_color: string;
+    court_color: string;
     logo_url?: string;
   } = {
     name,
     primary_color: primaryColor,
     secondary_color: secondaryColor,
+    court_color: courtColor,
   };
 
   if (logo && logo.size > 0) {

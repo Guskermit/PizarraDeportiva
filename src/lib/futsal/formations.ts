@@ -8,6 +8,14 @@ export const COURT_HEIGHT = 200;
 // have room to render outside the touchlines instead of being clipped by the canvas.
 export const GOAL_DEPTH = 10;
 
+/** Predefined court-surface colour presets for the tactical board. */
+export const COURT_COLOR_PRESETS = [
+  { value: "#1565c0", label: "Azul" },
+  { value: "#b5651d", label: "Parquet de madera" },
+  { value: "#15803d", label: "Verde" },
+  { value: "#d4b896", label: "Beige" },
+] as const;
+
 export const PLAY_TYPE_LABELS: Record<string, string> = {
   corner: "Córner",
   falta: "Falta",

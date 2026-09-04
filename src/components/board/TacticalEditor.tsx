@@ -85,6 +85,8 @@ export function TacticalEditor({
   savedSequences,
   homeColor,
   awayColor,
+  courtColor,
+  logoUrl,
   status,
   currentUserId,
 }: {
@@ -93,6 +95,8 @@ export function TacticalEditor({
   savedSequences: Sequence[];
   homeColor: string;
   awayColor: string;
+  courtColor?: string;
+  logoUrl?: string | null;
   status: "draft" | "ready";
   currentUserId?: string | null;
 }) {
@@ -391,6 +395,8 @@ export function TacticalEditor({
           moves={locked ? pendingMoves : []}
           homeColor={homeColor}
           awayColor={awayColor}
+          courtColor={courtColor}
+          logoUrl={logoUrl}
           interactivePlayers={playStatus === "draft"}
           interactiveBall={playStatus === "draft"}
           interactiveCurves={locked && playStatus === "draft"}

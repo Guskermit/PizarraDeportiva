@@ -43,7 +43,7 @@ export default async function ClubPage() {
 
   const { data: adminRaw } = await supabase
     .from("club_admins")
-    .select("role, clubs(id, name, logo_url, primary_color, secondary_color)")
+    .select("role, clubs(id, name, logo_url, primary_color, secondary_color, court_color)")
     .eq("profile_id", user!.id)
     .limit(1)
     .maybeSingle();
@@ -57,6 +57,7 @@ export default async function ClubPage() {
           logo_url: string | null;
           primary_color: string;
           secondary_color: string;
+          court_color: string;
         };
       }
     | null;

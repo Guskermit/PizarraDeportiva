@@ -14,6 +14,8 @@ export interface TacticalBoardProps {
   moves?: BoardMove[];
   homeColor: string;
   awayColor: string;
+  courtColor?: string;
+  logoUrl?: string | null;
   interactivePlayers?: boolean;
   interactiveBall?: boolean;
   interactiveCurves?: boolean;
@@ -27,6 +29,8 @@ export function TacticalBoard({
   moves = [],
   homeColor,
   awayColor,
+  courtColor,
+  logoUrl,
   interactivePlayers,
   interactiveBall,
   interactiveCurves,
@@ -82,7 +86,7 @@ export function TacticalBoard({
     >
       <Stage width={width} height={height} scaleX={scale} scaleY={scale}>
         <Layer x={GOAL_DEPTH}>
-          <FutsalCourt />
+          <FutsalCourt courtColor={courtColor} logoUrl={logoUrl} />
 
           {moves.map((move, i) => (
             <MoveLine

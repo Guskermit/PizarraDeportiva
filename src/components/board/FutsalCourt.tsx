@@ -1,21 +1,42 @@
 "use client";
 
-import { Rect, Line, Circle, Arc } from "react-konva";
+import { useEffect, useState } from "react";
+import { Rect, Line, Circle, Arc, Group, Image as KonvaImage } from "react-konva";
 import { COURT_WIDTH, COURT_HEIGHT, GOAL_DEPTH } from "@/lib/futsal/formations";
 
 const LINE_COLOR = "#f8fafc";
 const LINE_WIDTH = 1.5;
 
 // Draws the markings of a regulation futsal court (simplified) inside a COURT_WIDTH x COURT_HEIGHT box.
-export function FutsalCourt() {
+export function FutsalCourt({
+  courtColor = "#15803d",
+  logoUrl,
+}: {
+  courtColor?: string;
+  logoUrl?: string | null;
+} = {}) {
   const midY = COURT_HEIGHT / 2;
   const areaWidth = COURT_WIDTH * 0.15;
   const areaHeight = COURT_HEIGHT * 0.5;
   const goalWidth = areaHeight * 0.3;
+  const centerRadius = COURT_HEIGHT * 0.18;
+
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (!logoUrl) {
+      setLogo(null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = logoUrl;
+    img.onload = () => setLogo(img);
+  }, [logoUrl]);
 
   return (
     <>
-      <Rect x={0} y={0} width={COURT_WIDTH} height={COURT_HEIGHT} fill="#15803d" cornerRadius={4} />
+      <Rect x={0} y={0} width={COURT_WIDTH} height={COURT_HEIGHT} fill={courtColor} cornerRadius={4} />
 
       {/* outer boundary */}
       <Rect
@@ -33,8 +54,28 @@ export function FutsalCourt() {
         stroke={LINE_COLOR}
         strokeWidth={LINE_WIDTH}
       />
-      <Circle x={COURT_WIDTH / 2} y={midY} radius={COURT_HEIGHT * 0.18} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
-      <Circle x={COURT_WIDTH / 2} y={midY} radius={2} fill={LINE_COLOR} />
+      <Circle x={COURT_WIDTH / 2} y={midY} radius={centerRadius} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+      {logo ? (
+        <Group
+          x={COURT_WIDTH / 2}
+          y={midY}
+          clipFunc={(ctx) => {
+            ctx.beginPath();
+            ctx.arc(0, 0, centerRadius - 1, 0, Math.PI * 2, false);
+            ctx.closePath();
+          }}
+        >
+          <KonvaImage
+            image={logo}
+            x={-centerRadius + 1}
+            y={-centerRadius + 1}
+            width={(centerRadius - 1) * 2}
+            height={(centerRadius - 1) * 2}
+          />
+        </Group>
+      ) : (
+        <Circle x={COURT_WIDTH / 2} y={midY} radius={2} fill={LINE_COLOR} />
+      )}
 
       {/* goal areas (simplified semicircular "área de meta") */}
       <Arc

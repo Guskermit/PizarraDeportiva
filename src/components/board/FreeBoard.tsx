@@ -37,11 +37,15 @@ export function FreeBoard({
   situations,
   homeColor,
   awayColor,
+  courtColor,
+  logoUrl,
   showSaveForm = false,
 }: {
   situations: BoardSituation[];
   homeColor: string;
   awayColor: string;
+  courtColor?: string;
+  logoUrl?: string | null;
   showSaveForm?: boolean;
 }) {
   const router = useRouter();
@@ -191,6 +195,8 @@ export function FreeBoard({
             positions={positions}
             homeColor={homeColor}
             awayColor={awayColor}
+            courtColor={courtColor}
+            logoUrl={logoUrl}
             interactivePlayers
             interactiveBall
             onPlayerDragEnd={handlePlayerDragEnd}
