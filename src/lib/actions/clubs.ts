@@ -77,8 +77,8 @@ export async function registerClub(
     slug,
     logo_url: logoUrl,
     primary_color: primaryColor,
-    sourt_color: courtColor,
-    cecondary_color: secondaryColor,
+    court_color: courtColor,
+    secondary_color: secondaryColor,
     created_by: userId,
   });
 
