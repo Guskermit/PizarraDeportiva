@@ -4,10 +4,17 @@ import { ActionForm } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createBoardSituation, deleteBoardSituation } from "@/lib/actions/situations";
 import { buildInitialPositions, clonePositions } from "@/lib/futsal/formations";
 import type { BoardPositions } from "@/lib/supabase/database.types";
-import { ArrowLeft, Maximize, Minimize, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
+import { ArrowLeft, Cpu, Maximize, Minimize, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,6 +22,11 @@ import { useEffect, useRef, useState } from "react";
 
 const TacticalBoard = dynamic(
   () => import("@/components/board/TacticalBoard").then((module) => module.TacticalBoard),
+  { ssr: false },
+);
+
+const FreeBoardLite = dynamic(
+  () => import("@/components/board/FreeBoardLite").then((module) => module.FreeBoardLite),
   { ssr: false },
 );
 
@@ -56,6 +68,17 @@ export function FreeBoard({
   const [panelOpen, setPanelOpen] = useState(showSaveForm);
   const [name, setName] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [useLite, setUseLite] = useState(false);
+
+  // Sync lite preference from localStorage after hydration (avoids SSR mismatch).
+  useEffect(() => {
+    const stored = localStorage.getItem("freeboard-lite");
+    if (stored === "true") setUseLite(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("freeboard-lite", String(useLite));
+  }, [useLite]);
 
   useEffect(() => {
     function handleFullscreenChange() {
@@ -191,17 +214,29 @@ export function FreeBoard({
 
       <main className="relative flex min-h-0 flex-1 items-center justify-center p-2 sm:p-5">
         <div className="h-full w-full">
-          <TacticalBoard
-            positions={positions}
-            homeColor={homeColor}
-            awayColor={awayColor}
-            courtColor={courtColor}
-            logoUrl={logoUrl}
-            interactivePlayers
-            interactiveBall
-            onPlayerDragEnd={handlePlayerDragEnd}
-            onBallDragEnd={handleBallDragEnd}
-          />
+          {useLite ? (
+            <FreeBoardLite
+              positions={positions}
+              homeColor={homeColor}
+              awayColor={awayColor}
+              courtColor={courtColor}
+              logoUrl={logoUrl}
+              onPlayerDragEnd={handlePlayerDragEnd}
+              onBallDragEnd={handleBallDragEnd}
+            />
+          ) : (
+            <TacticalBoard
+              positions={positions}
+              homeColor={homeColor}
+              awayColor={awayColor}
+              courtColor={courtColor}
+              logoUrl={logoUrl}
+              interactivePlayers
+              interactiveBall
+              onPlayerDragEnd={handlePlayerDragEnd}
+              onBallDragEnd={handleBallDragEnd}
+            />
+          )}
         </div>
 
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/90 p-1.5 shadow-lg backdrop-blur sm:bottom-5">
@@ -224,14 +259,45 @@ export function FreeBoard({
           >
             <RotateCcw />
           </Button>
+          {situations.length > 0 && (
+            <Select onValueChange={(id) => {
+              const situation = situations.find((s) => s.id === id);
+              if (situation) loadSituation(situation);
+            }}>
+              <SelectTrigger
+                className="h-8 w-auto min-w-0 max-w-[10rem] border-0 bg-transparent text-xs"
+                title="Cargar situación"
+                aria-label="Seleccionar situación inicial"
+              >
+                <SelectValue placeholder="Situación…" />
+              </SelectTrigger>
+              <SelectContent>
+                {situations.map((situation) => (
+                  <SelectItem key={situation.id} value={situation.id}>
+                    {situation.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={() => setPanelOpen(true)}
-            title="Cargar situación"
-            aria-label="Cargar situación"
+            title="Gestionar situaciones"
+            aria-label="Gestionar situaciones"
           >
             <Save />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setUseLite((v) => !v)}
+            className={useLite ? "text-primary" : ""}
+            title={useLite ? "Modo completo (Canvas)" : "Modo ligero (CPU)"}
+            aria-label={useLite ? "Cambiar a modo completo" : "Cambiar a modo ligero"}
+          >
+            <Cpu />
           </Button>
           <Button
             variant="ghost"
