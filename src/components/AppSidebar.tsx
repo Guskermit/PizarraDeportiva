@@ -13,6 +13,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Save,
+  BookOpen,
+  FolderOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -209,6 +211,8 @@ export function AppSidebar({
     { href: "/board", label: "Pizarra libre", icon: PenLine },
     { href: "/situations", label: "Situaciones", icon: Save },
     { href: "/plays", label: "Jugadas", icon: ClipboardList },
+    { href: "/library", label: "Biblioteca", icon: BookOpen },
+    ...(isClubAdmin ? [{ href: "/catalogs", label: "Catálogos", icon: FolderOpen }] : []),
   ];
 
   return (

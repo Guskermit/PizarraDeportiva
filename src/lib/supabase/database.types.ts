@@ -16,6 +16,8 @@ export type TeamFormation = "portero_4_jugadores" | "5_jugadores" | "portero_3_j
 
 export type PlayStatus = "draft" | "ready";
 
+export type Difficulty = 1 | 2 | 3 | 4 | 5;
+
 export interface BoardPoint {
   x: number;
   y: number;
@@ -158,6 +160,7 @@ export interface Database {
           away_color: string;
           initial_positions: BoardPositions;
           status: PlayStatus;
+          difficulty: Difficulty;
           created_at: string;
           updated_at: string;
         };
@@ -235,6 +238,43 @@ export interface Database {
           positions: BoardPositions;
         };
         Update: Partial<Database["public"]["Tables"]["board_situations"]["Row"]>;
+        Relationships: [];
+      };
+      play_catalogs: {
+        Row: {
+          id: string;
+          club_id: string;
+          name: string;
+          description: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["play_catalogs"]["Row"]> & {
+          club_id: string;
+          name: string;
+          created_by: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["play_catalogs"]["Row"]>;
+        Relationships: [];
+      };
+      play_catalog_plays: {
+        Row: {
+          catalog_id: string;
+          play_id: string;
+        };
+        Insert: { catalog_id: string; play_id: string };
+        Update: Partial<Database["public"]["Tables"]["play_catalog_plays"]["Row"]>;
+        Relationships: [];
+      };
+      team_catalogs: {
+        Row: {
+          team_id: string;
+          catalog_id: string;
+          assigned_by: string;
+          assigned_at: string;
+        };
+        Insert: { team_id: string; catalog_id: string; assigned_by: string };
+        Update: Partial<Database["public"]["Tables"]["team_catalogs"]["Row"]>;
         Relationships: [];
       };
     };

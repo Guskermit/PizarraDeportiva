@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addCoachByEmail, addPlayerByEmail, removeCoach, removePlayer } from "@/lib/actions/teams";
 import { ActionForm } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
+import { TeamCatalogsSection, type CatalogInfo } from "@/components/club/TeamCatalogsSection";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,10 @@ export default async function TeamDetailPage({
       .eq("team_id", teamId),
   ]);
 
+  if (!team) {
+    return <p>Equipo no encontrado.</p>;
+  }
+
   const coaches = coachesRaw as unknown as
     | { profile_id: string; profiles: { id: string; full_name: string; email: string } }[]
     | null;
@@ -42,9 +47,46 @@ export default async function TeamDetailPage({
       }[]
     | null;
 
-  if (!team) {
-    return <p>Equipo no encontrado.</p>;
+  // Fetch catalogs for this team.
+  const [{ data: assignedRaw }, { data: allCatalogsRaw }] = await Promise.all([
+    supabase
+      .from("team_catalogs")
+      .select("catalog_id")
+      .eq("team_id", teamId),
+    supabase
+      .from("play_catalogs")
+      .select("id, name, description")
+      .eq("club_id", team.club_id),
+  ]);
+
+  const assignedIds = (assignedRaw ?? []).map((tc) => tc.catalog_id);
+  const [{ data: assignedCatalogsData }, { data: playCounts }] = await Promise.all([
+    assignedIds.length > 0
+      ? supabase.from("play_catalogs").select("id, name, description").in("id", assignedIds)
+      : Promise.resolve({ data: [] as any[] }),
+    assignedIds.length > 0
+      ? supabase.from("play_catalog_plays").select("catalog_id").in("catalog_id", assignedIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const countMap: Record<string, number> = {};
+  for (const row of playCounts ?? []) {
+    countMap[row.catalog_id] = (countMap[row.catalog_id] ?? 0) + 1;
   }
+
+  const assignedCatalogs: CatalogInfo[] = (assignedCatalogsData ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    play_count: countMap[c.id] ?? 0,
+  }));
+
+  const allCatalogs: CatalogInfo[] = (allCatalogsRaw ?? []).map((c: any) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    play_count: 0,
+  }));
 
   return (
     <div className="grid w-full gap-8">
@@ -137,6 +179,19 @@ export default async function TeamDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Catálogos de jugadas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TeamCatalogsSection
+            teamId={teamId}
+            assignedCatalogs={assignedCatalogs}
+            allCatalogs={allCatalogs}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

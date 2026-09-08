@@ -5,6 +5,7 @@ import { buildInitialPositions } from "@/lib/futsal/formations";
 import type {
   BoardMove,
   BoardPositions,
+  Difficulty,
   PlayType,
   TeamFormation,
 } from "@/lib/supabase/database.types";
@@ -90,6 +91,7 @@ export async function updatePlayDetails(
   const playType = String(formData.get("playType") ?? "") as PlayType;
   const homeColor = String(formData.get("homeColor") ?? "");
   const awayColor = String(formData.get("awayColor") ?? "");
+  const difficulty = Math.min(5, Math.max(1, Number(formData.get("difficulty") ?? 1))) as Difficulty;
 
   if (!title || !playType || !homeColor || !awayColor) {
     return { error: "Rellena todos los campos para guardar los cambios." };
@@ -98,7 +100,7 @@ export async function updatePlayDetails(
   const supabase = await createClient();
   const { error } = await supabase
     .from("plays")
-    .update({ title, play_type: playType, home_color: homeColor, away_color: awayColor })
+    .update({ title, play_type: playType, home_color: homeColor, away_color: awayColor, difficulty })
     .eq("id", playId);
   if (error) return { error: error.message };
 
@@ -343,5 +345,35 @@ export async function deletePlay(playId: string) {
   if (error) return { error: error.message };
 
   revalidatePath("/plays");
+  return { success: true };
+}
+
+export async function updatePlayDifficulty(playId: string, difficulty: Difficulty) {
+  if (difficulty < 1 || difficulty > 5) return { error: "Dificultad no válida." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesión no válida." };
+
+  const { data: play } = await supabase
+    .from("plays")
+    .select("id, owner_coach_id")
+    .eq("id", playId)
+    .single();
+  if (!play || play.owner_coach_id !== user.id) {
+    return { error: "No tienes permiso para modificar esta jugada." };
+  }
+
+  const { error } = await supabase
+    .from("plays")
+    .update({ difficulty })
+    .eq("id", playId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/plays");
+  revalidatePath(`/plays/${playId}/edit`);
+  revalidatePath("/library");
   return { success: true };
 }

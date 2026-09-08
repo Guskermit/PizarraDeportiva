@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updatePlayDetails } from "@/lib/actions/plays";
-import { FORMATION_LABELS, PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
+import { FORMATION_LABELS, PLAY_TYPE_LABELS, DIFFICULTY_LABELS } from "@/lib/futsal/formations";
 import type { BoardMove, BoardPositions } from "@/lib/supabase/database.types";
 import { getBoardColors } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -70,6 +70,10 @@ export default async function EditPlayPage({
     value,
     label,
   }));
+  const difficultyOptions = Object.entries(DIFFICULTY_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
   const boardColors = await getBoardColors();
 
   return (
@@ -122,6 +126,13 @@ export default async function EditPlayPage({
                     name="awayColor"
                     label="Color equipo visitante"
                     defaultValue={play.away_color}
+                  />
+                  <ClientSelectField
+                    id="difficulty"
+                    name="difficulty"
+                    label="Dificultad"
+                    options={difficultyOptions}
+                    defaultValue={String(play.difficulty ?? 1)}
                   />
                 </div>
               </CardContent>

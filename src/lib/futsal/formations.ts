@@ -32,6 +32,22 @@ export const FORMATION_LABELS: Record<TeamFormation, string> = {
   portero_3_jugadores: "Portero + 3 jugadores (inferioridad)",
 };
 
+export const DIFFICULTY_LABELS: Record<number, string> = {
+  1: "Iniciación",
+  2: "Básico",
+  3: "Intermedio",
+  4: "Avanzado",
+  5: "Experto",
+};
+
+export const DIFFICULTY_COLORS: Record<number, string> = {
+  1: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
+  2: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400",
+  3: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  4: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400",
+  5: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400",
+};
+
 /**
  * Builds the default starting layout for a team on one half of the court.
  * `side` controls whether the team lines up on the left (home) or right (away) half.
