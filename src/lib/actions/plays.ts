@@ -320,3 +320,28 @@ export async function copyPlayToCatalog(playId: string) {
   revalidatePath("/plays");
   redirect(`/plays/${newPlayId}/edit`);
 }
+
+export async function deletePlay(playId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesión no válida." };
+
+  // Only the owner can delete their plays.
+  const { data: play } = await supabase
+    .from("plays")
+    .select("id, owner_coach_id")
+    .eq("id", playId)
+    .single();
+
+  if (!play || play.owner_coach_id !== user.id) {
+    return { error: "No tienes permiso para eliminar esta jugada." };
+  }
+
+  const { error } = await supabase.from("plays").delete().eq("id", playId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/plays");
+  return { success: true };
+}

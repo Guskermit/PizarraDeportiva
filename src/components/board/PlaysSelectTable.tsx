@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import type { ClubCoach } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
-import { Edit3, Eye, Play, Search } from "lucide-react";
+import { Edit3, Eye, Play, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 
@@ -32,12 +32,14 @@ export function PlaysSelectTable({
   onToggle,
   onPlayLoop,
   coachesByClub,
+  onDelete,
 }: {
   plays: PlayRow[];
   selected: Set<string>;
   onToggle: (id: string) => void;
   onPlayLoop: () => void;
   coachesByClub?: Record<string, ClubCoach[]>;
+  onDelete?: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const searchId = useId();
@@ -189,6 +191,18 @@ export function PlaysSelectTable({
                           playId={play.id}
                           coaches={coachesByClub[play.clubId] ?? []}
                         />
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Eliminar"
+                          aria-label="Eliminar"
+                          onClick={() => onDelete(play.id)}
+                        >
+                          <Trash2 />
+                        </Button>
                       )}
                     </div>
                   </TableCell>

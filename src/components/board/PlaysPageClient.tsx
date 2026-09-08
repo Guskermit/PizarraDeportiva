@@ -4,6 +4,7 @@ import { PlayLoopPlayer } from "@/components/board/PlayLoopPlayer";
 import { PlaysSelectTable } from "@/components/board/PlaysSelectTable";
 import { type LoopPlay } from "@/components/board/PlayLoopPlayer";
 import type { ClubCoach } from "@/lib/supabase/queries";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function PlaysPageClient({
@@ -18,6 +19,7 @@ export function PlaysPageClient({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loopPlayerOpen, setLoopPlayerOpen] = useState(false);
   const [loopStartIndex, setLoopStartIndex] = useState(0);
+  const router = useRouter();
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -38,6 +40,24 @@ export function PlaysPageClient({
     setLoopPlayerOpen(true);
   }
 
+  function handleDelete(id: string) {
+    if (!window.confirm("¿Seguro que quieres eliminar esta jugada?")) return;
+    import("@/lib/actions/plays").then(({ deletePlay }) => {
+      deletePlay(id).then((res) => {
+        if (res?.error) {
+          window.alert(res.error);
+        } else {
+          setSelected((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+          router.refresh();
+        }
+      });
+    });
+  }
+
   const loopPlays = Array.from(selected)
     .map((id) => playDataMap[id])
     .filter(Boolean);
@@ -50,6 +70,7 @@ export function PlaysPageClient({
         onToggle={toggle}
         onPlayLoop={openLoopPlayer}
         coachesByClub={coachesByClub}
+        onDelete={handleDelete}
       />
 
       {loopPlayerOpen && loopPlays.length >= 2 && (
