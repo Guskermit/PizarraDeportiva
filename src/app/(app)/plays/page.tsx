@@ -1,6 +1,8 @@
 import { FlatTable } from "@/components/FlatTable";
 import { ShareForm } from "@/components/forms/ShareForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
+import { PlaysPageClient } from "@/components/board/PlaysPageClient";
+import { type LoopPlay, type LoopSequence } from "@/components/board/PlayLoopPlayer";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { copyPlayToCatalog } from "@/lib/actions/plays";
@@ -59,6 +61,49 @@ export default async function PlaysPage() {
     }),
   );
 
+  // Fetch sequences for all plays (for the loop player).
+  const allPlayIds = (plays ?? []).map((p) => p.id);
+  const { data: allSequences } = await supabase
+    .from("play_sequences")
+    .select(
+      "id, order_index, play_id, positions, moves, notes:play_sequence_notes(id, sequence_id, author_id, content, created_at, profiles:author_id(full_name))",
+    )
+    .in("play_id", allPlayIds)
+    .order("order_index", { ascending: true });
+
+  // Build a map of play_id → sequences, typed for the loop player.
+  const seqsByPlay: Record<string, LoopSequence[]> = {};
+  for (const raw of (allSequences ?? []) as any[]) {
+    const seq: LoopSequence = {
+      id: raw.id,
+      order_index: raw.order_index,
+      positions: raw.positions,
+      moves: raw.moves,
+      notes: (raw.notes ?? []).map((n: any) => ({
+        id: n.id,
+        sequence_id: n.sequence_id,
+        author_id: n.author_id,
+        content: n.content,
+        created_at: n.created_at,
+        author_name: n.profiles?.full_name ?? undefined,
+      })),
+    };
+    (seqsByPlay[raw.play_id] ??= []).push(seq);
+  }
+
+  // Full play data map for the loop player.
+  const playDataMap: Record<string, LoopPlay> = {};
+  for (const play of myPlays) {
+    playDataMap[play.id] = {
+      id: play.id,
+      title: play.title,
+      initial_positions: play.initial_positions,
+      sequences: seqsByPlay[play.id] ?? [],
+      home_color: play.home_color,
+      away_color: play.away_color,
+    };
+  }
+
   return (
     <div className="grid w-full gap-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -74,52 +119,16 @@ export default async function PlaysPage() {
 
       <div className="grid gap-4">
         <h2 className="text-lg font-semibold">Mi catálogo</h2>
-        <FlatTable
-          columns={[
-            { key: "title", label: "Título" },
-            { key: "type", label: "Tipo", width: "12rem" },
-            { key: "status", label: "Estado", width: "8rem" },
-            { key: "actions", label: "Acciones", width: "auto" },
-          ]}
-          searchPlaceholder="Buscar jugadas..."
-          emptyMessage="Todavía no has creado ninguna jugada."
-          rows={myPlays.map((play) => ({
+        <PlaysPageClient
+          plays={myPlays.map((play) => ({
             id: play.id,
-            searchText: `${play.title} ${PLAY_TYPE_LABELS[play.play_type]}`,
-            cells: [
-              <div key="title" className="flex items-center gap-3">
-                <Avatar size="sm">
-                  <AvatarFallback>{getInitials(play.title)}</AvatarFallback>
-                </Avatar>
-                <span className="font-medium">{play.title}</span>
-              </div>,
-              <span key="type" className="text-muted-foreground">
-                {PLAY_TYPE_LABELS[play.play_type]}
-              </span>,
-              <StatusPill key="status" status={play.status} />,
-              <div key="actions" className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  render={<Link href={`/plays/${play.id}/edit`} />}
-                  title="Editar"
-                  aria-label="Editar"
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  variant="tertiary"
-                  size="icon-sm"
-                  render={<Link href={`/plays/${play.id}/view`} />}
-                  title="Ver"
-                  aria-label="Ver"
-                >
-                  <Eye />
-                </Button>
-                <ShareForm playId={play.id} coaches={coachesByClub[play.club_id] ?? []} />
-              </div>,
-            ],
+            title: play.title,
+            typeLabel: PLAY_TYPE_LABELS[play.play_type],
+            status: play.status,
+            clubId: play.club_id,
           }))}
+          playDataMap={playDataMap}
+          coachesByClub={coachesByClub}
         />
       </div>
 
