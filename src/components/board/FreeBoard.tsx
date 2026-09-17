@@ -14,11 +14,13 @@ import {
 import { createBoardSituation, deleteBoardSituation } from "@/lib/actions/situations";
 import { buildInitialPositions, clonePositions } from "@/lib/futsal/formations";
 import type { BoardPositions } from "@/lib/supabase/database.types";
-import { ArrowLeft, Cpu, Maximize, Minimize, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
+import { ArrowLeft, Cpu, Maximize, Minimize, Pencil, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import type { DrawingStroke, PencilTool } from "@/components/board/DrawingLayer";
+import { PencilToolbar } from "@/components/board/PencilToolbar";
 
 const TacticalBoard = dynamic(
   () => import("@/components/board/TacticalBoard").then((module) => module.TacticalBoard),
@@ -69,6 +71,13 @@ export function FreeBoard({
   const [name, setName] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [useLite, setUseLite] = useState(false);
+
+  // Pencil mode state
+  const [pencilMode, setPencilMode] = useState(false);
+  const [drawingStrokes, setDrawingStrokes] = useState<DrawingStroke[]>([]);
+  const [pencilTool, setPencilTool] = useState<PencilTool>("pointer");
+  const [pencilColor, setPencilColor] = useState("#ef4444");
+  const [pencilWidth, setPencilWidth] = useState(2);
 
   // Sync lite preference from localStorage after hydration (avoids SSR mismatch).
   useEffect(() => {
@@ -164,17 +173,35 @@ export function FreeBoard({
   function reset() {
     setHistory((previous) => [...previous, clonePositions(positions)]);
     setPositions(clonePositions(initialPositions));
+    // Also clear drawing strokes on reset
+    if (pencilMode) setDrawingStrokes([]);
   }
 
   function loadSituation(situation: BoardSituation) {
     setHistory((previous) => [...previous, clonePositions(positions)]);
     setPositions(clonePositions(situation.positions));
     setPanelOpen(false);
+    // Clear drawing strokes when loading a situation
+    setDrawingStrokes([]);
   }
 
   async function removeSituation(id: string) {
     await deleteBoardSituation(id);
     router.refresh();
+  }
+
+  function togglePencilMode() {
+    setPencilMode((prev) => !prev);
+    if (pencilMode) {
+      // Exiting pencil mode - keep strokes visible? Or clear?
+      // Let's keep them for now
+    }
+  }
+
+  function handleStrokePositionChange(id: string, pos: { x: number; y: number }) {
+    setDrawingStrokes((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, position: pos } : s)),
+    );
   }
 
   const createAction = createBoardSituation.bind(null, positions);
@@ -200,6 +227,11 @@ export function FreeBoard({
           <h1 className="truncate text-sm font-semibold sm:text-base">
             {showSaveForm ? "Situaciones preconfiguradas" : "Pizarra libre"}
           </h1>
+          {pencilMode && (
+            <span className="ml-2 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              Modo lápiz
+            </span>
+          )}
         </div>
         <Button
           variant={panelOpen ? "secondary" : "ghost"}
@@ -223,6 +255,13 @@ export function FreeBoard({
               logoUrl={logoUrl}
               onPlayerDragEnd={handlePlayerDragEnd}
               onBallDragEnd={handleBallDragEnd}
+              pencilMode={pencilMode}
+              drawingStrokes={drawingStrokes}
+              activePencilTool={pencilTool}
+              pencilColor={pencilColor}
+              pencilWidth={pencilWidth}
+              onDrawingStrokesChange={setDrawingStrokes}
+              onStrokePositionChange={handleStrokePositionChange}
             />
           ) : (
             <TacticalBoard
@@ -231,83 +270,124 @@ export function FreeBoard({
               awayColor={awayColor}
               courtColor={courtColor}
               logoUrl={logoUrl}
-              interactivePlayers
-              interactiveBall
+              interactivePlayers={!pencilMode}
+              interactiveBall={!pencilMode}
               onPlayerDragEnd={handlePlayerDragEnd}
               onBallDragEnd={handleBallDragEnd}
+              pencilMode={pencilMode}
+              drawingStrokes={drawingStrokes}
+              activePencilTool={pencilTool}
+              pencilColor={pencilColor}
+              pencilWidth={pencilWidth}
+              onDrawingStrokesChange={setDrawingStrokes}
+              onStrokePositionChange={handleStrokePositionChange}
             />
           )}
         </div>
 
+        {/* Pencil toolbar */}
+        {pencilMode && (
+          <PencilToolbar
+            activeTool={pencilTool}
+            color={pencilColor}
+            strokeWidth={pencilWidth}
+            onToolChange={setPencilTool}
+            onColorChange={setPencilColor}
+            onStrokeWidthChange={setPencilWidth}
+            onClearAll={() => setDrawingStrokes([])}
+            onClose={togglePencilMode}
+          />
+        )}
+
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/90 p-1.5 shadow-lg backdrop-blur sm:bottom-5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={undo}
-            disabled={history.length === 0}
-            title="Deshacer último movimiento"
-            aria-label="Deshacer último movimiento"
-          >
-            <Undo2 />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={reset}
-            title="Volver a la posición inicial"
-            aria-label="Volver a la posición inicial"
-          >
-            <RotateCcw />
-          </Button>
-          {situations.length > 0 && (
-            <Select onValueChange={(id) => {
-              const situation = situations.find((s) => s.id === id);
-              if (situation) loadSituation(situation);
-            }}>
-              <SelectTrigger
-                className="h-8 w-auto min-w-0 max-w-[10rem] border-0 bg-transparent text-xs"
-                title="Cargar situación"
-                aria-label="Seleccionar situación inicial"
+          {!pencilMode && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={undo}
+                disabled={history.length === 0}
+                title="Deshacer último movimiento"
+                aria-label="Deshacer último movimiento"
               >
-                <SelectValue placeholder="Situación…" />
-              </SelectTrigger>
-              <SelectContent>
-                {situations.map((situation) => (
-                  <SelectItem key={situation.id} value={situation.id}>
-                    {situation.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Undo2 />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={reset}
+                title="Volver a la posición inicial"
+                aria-label="Volver a la posición inicial"
+              >
+                <RotateCcw />
+              </Button>
+              {situations.length > 0 && (
+                <Select onValueChange={(id) => {
+                  const situation = situations.find((s) => s.id === id);
+                  if (situation) loadSituation(situation);
+                }}>
+                  <SelectTrigger
+                    className="h-8 w-auto min-w-0 max-w-[10rem] border-0 bg-transparent text-xs"
+                    title="Cargar situación"
+                    aria-label="Seleccionar situación inicial"
+                  >
+                    <SelectValue placeholder="Situación…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {situations.map((situation) => (
+                      <SelectItem key={situation.id} value={situation.id}>
+                        {situation.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setPanelOpen(true)}
+                title="Gestionar situaciones"
+                aria-label="Gestionar situaciones"
+              >
+                <Save />
+              </Button>
+            </>
           )}
+
+          {/* Pencil mode toggle - always visible */}
           <Button
-            variant="ghost"
+            variant={pencilMode ? "secondary" : "ghost"}
             size="icon-sm"
-            onClick={() => setPanelOpen(true)}
-            title="Gestionar situaciones"
-            aria-label="Gestionar situaciones"
+            onClick={togglePencilMode}
+            title={pencilMode ? "Salir del modo lápiz" : "Modo lápiz"}
+            aria-label={pencilMode ? "Salir del modo lápiz" : "Activar modo lápiz"}
           >
-            <Save />
+            <Pencil />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setUseLite((v) => !v)}
-            className={useLite ? "text-primary" : ""}
-            title={useLite ? "Modo completo (Canvas)" : "Modo ligero (CPU)"}
-            aria-label={useLite ? "Cambiar a modo completo" : "Cambiar a modo ligero"}
-          >
-            <Cpu />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-          >
-            {isFullscreen ? <Minimize /> : <Maximize />}
-          </Button>
+
+          {!pencilMode && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setUseLite((v) => !v)}
+                className={useLite ? "text-primary" : ""}
+                title={useLite ? "Modo completo (Canvas)" : "Modo ligero (CPU)"}
+                aria-label={useLite ? "Cambiar a modo completo" : "Cambiar a modo ligero"}
+              >
+                <Cpu />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+                aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              >
+                {isFullscreen ? <Minimize /> : <Maximize />}
+              </Button>
+            </>
+          )}
         </div>
 
         {panelOpen && (

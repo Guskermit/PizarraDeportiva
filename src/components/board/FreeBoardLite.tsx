@@ -1,5 +1,7 @@
 "use client";
 
+import { DrawingCanvasOverlay } from "@/components/board/DrawingCanvasOverlay";
+import type { DrawingStroke, PencilTool } from "@/components/board/DrawingLayer";
 import { COURT_HEIGHT, COURT_WIDTH, GOAL_DEPTH } from "@/lib/futsal/formations";
 import type { BoardPoint, BoardPositions } from "@/lib/supabase/database.types";
 import { useEffect, useRef, useState } from "react";
@@ -99,21 +101,15 @@ function CourtSVG() {
 /* ── Token (player / ball) component ─────────────────────────────────── */
 
 interface TokenProps {
-  /** World-unit X position */
   wx: number;
-  /** World-unit Y position */
   wy: number;
-  /** CSS scale = container px / world units */
   scale: number;
-  /** Extra horizontal offset to account for GOAL_DEPTH margin */
   offsetX: number;
   color: string;
   label: string;
   isGoalkeeper?: boolean;
   isBall?: boolean;
-  /** Fired continuously while dragging (world coordinates). */
   onDrag?: (pos: BoardPoint) => void;
-  /** Fired once on pointer-up (world coordinates). */
   onDragEnd?: (pos: BoardPoint) => void;
 }
 
@@ -179,9 +175,6 @@ function Token({
     onDragEnd?.(world);
   }
 
-  // Sizes match the Konva originals: player diameter 14 world-units, ball 9 world-units.
-  // These values are in CSS pixels, which is the same unit the court is rendered in,
-  // so we multiply by scale to match the court scaling.
   const size = isBall ? Math.round(9 * scale) : Math.round(14 * scale);
   const fontSize = isBall ? 0 : Math.round(7 * scale);
   const strokeW = isBall ? 1.5 : isGoalkeeper ? 2 : 1;
@@ -228,6 +221,14 @@ export interface FreeBoardLiteProps {
   onPlayerDragEnd: (team: "home" | "away", playerId: string, pos: BoardPoint) => void;
   onBallDragEnd: (pos: BoardPoint) => void;
   onPlayerDrag?: (team: "home" | "away", playerId: string, pos: BoardPoint) => void;
+  // Pencil mode props
+  pencilMode?: boolean;
+  drawingStrokes?: DrawingStroke[];
+  activePencilTool?: PencilTool;
+  pencilColor?: string;
+  pencilWidth?: number;
+  onDrawingStrokesChange?: (strokes: DrawingStroke[]) => void;
+  onStrokePositionChange?: (id: string, pos: BoardPoint) => void;
 }
 
 export function FreeBoardLite({
@@ -238,6 +239,13 @@ export function FreeBoardLite({
   onPlayerDragEnd,
   onBallDragEnd,
   onPlayerDrag,
+  pencilMode = false,
+  drawingStrokes = [],
+  activePencilTool = "freehand",
+  pencilColor = "#ef4444",
+  pencilWidth = 2,
+  onDrawingStrokesChange,
+  onStrokePositionChange,
 }: FreeBoardLiteProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: COURT_TOTAL_W * 2, height: COURT_HEIGHT });
@@ -291,7 +299,22 @@ export function FreeBoardLite({
       >
         <CourtSVG />
 
-        {positions.home.map((p) => (
+        {/* Drawing canvas overlay for pencil mode */}
+        {pencilMode && (
+          <DrawingCanvasOverlay
+            strokes={drawingStrokes}
+            activeTool={activePencilTool}
+            color={pencilColor}
+            strokeWidth={pencilWidth}
+            scale={scale}
+            offsetX={offsetX}
+            onStrokesChange={onDrawingStrokesChange ?? (() => {})}
+            onStrokePositionChange={onStrokePositionChange}
+          />
+        )}
+
+        {/* Player and ball tokens - hidden in pencil mode */}
+        {!pencilMode && positions.home.map((p) => (
           <Token
             key={p.id}
             wx={p.x}
@@ -305,7 +328,7 @@ export function FreeBoardLite({
             onDragEnd={(pos) => onPlayerDragEnd("home", p.id, pos)}
           />
         ))}
-        {positions.away.map((p) => (
+        {!pencilMode && positions.away.map((p) => (
           <Token
             key={p.id}
             wx={p.x}
@@ -320,16 +343,18 @@ export function FreeBoardLite({
           />
         ))}
 
-        <Token
-          wx={positions.ball.x}
-          wy={positions.ball.y}
-          scale={scale}
-          offsetX={offsetX}
-          color="#ffffff"
-          label=""
-          isBall
-          onDragEnd={(pos) => onBallDragEnd(pos)}
-        />
+        {!pencilMode && (
+          <Token
+            wx={positions.ball.x}
+            wy={positions.ball.y}
+            scale={scale}
+            offsetX={offsetX}
+            color="#ffffff"
+            label=""
+            isBall
+            onDragEnd={(pos) => onBallDragEnd(pos)}
+          />
+        )}
       </div>
     </div>
   );
