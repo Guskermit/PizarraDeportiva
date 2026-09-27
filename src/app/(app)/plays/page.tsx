@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { copyPlayToCatalog } from "@/lib/actions/plays";
 import { PLAY_TYPE_LABELS } from "@/lib/futsal/formations";
-import { type ClubCoach, getClubCoaches } from "@/lib/supabase/queries";
+import { type ClubCoach, getBoardColors, getClubCoaches } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/server";
 import { cn, getInitials } from "@/lib/utils";
 import { ArrowRight, CheckCircle2, Copy, Edit3, Eye, Pencil } from "lucide-react";
@@ -43,6 +43,8 @@ export default async function PlaysPage() {
     .order("updated_at", { ascending: false });
 
   const { data: visibleShares } = await supabase.from("play_shares").select("play_id, can_copy");
+
+  const boardColors = await getBoardColors();
 
   const copyablePlayIds = new Set(
     (visibleShares ?? []).filter((s) => s.can_copy).map((s) => s.play_id),
@@ -129,6 +131,7 @@ export default async function PlaysPage() {
           }))}
           playDataMap={playDataMap}
           coachesByClub={coachesByClub}
+          boardColors={boardColors}
         />
       </div>
 

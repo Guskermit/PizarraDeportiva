@@ -72,13 +72,20 @@ export async function getMyTeams(): Promise<MyCoachedTeam[]> {
   return (data ?? []) as unknown as MyCoachedTeam[];
 }
 
-export async function getBoardColors() {
+export type BoardColors = {
+  homeColor: string;
+  awayColor: string;
+  courtColor: string;
+  logoUrl: string | null;
+};
+
+export async function getBoardColors(): Promise<BoardColors> {
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null as string | null };
+  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
 
   const { data: adminMembership } = await adminSupabase
     .from("club_admins")
@@ -123,7 +130,7 @@ export async function getBoardColors() {
       : undefined;
   }
 
-  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null as string | null };
+  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
   const { data: club } = await adminSupabase
     .from("clubs")
     .select("primary_color, secondary_color, court_color, logo_url")

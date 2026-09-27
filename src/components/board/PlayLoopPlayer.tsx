@@ -65,12 +65,16 @@ function quadraticAt(
 export function PlayLoopPlayer({
   plays,
   startIndex = 0,
+  homeColor,
+  awayColor,
   courtColor,
   logoUrl,
   onClose,
 }: {
   plays: LoopPlay[];
   startIndex?: number;
+  homeColor?: string;
+  awayColor?: string;
   courtColor?: string;
   logoUrl?: string | null;
   onClose: () => void;
@@ -409,8 +413,8 @@ export function PlayLoopPlayer({
           {!showTitle && displayed && (
             <TacticalBoard
               positions={displayed}
-              homeColor={play.home_color}
-              awayColor={play.away_color}
+              homeColor={homeColor ?? play.home_color}
+              awayColor={awayColor ?? play.away_color}
               courtColor={courtColor}
               logoUrl={logoUrl}
             />

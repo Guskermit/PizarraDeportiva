@@ -3,7 +3,7 @@
 import { PlayLoopPlayer } from "@/components/board/PlayLoopPlayer";
 import { PlaysSelectTable } from "@/components/board/PlaysSelectTable";
 import { type LoopPlay } from "@/components/board/PlayLoopPlayer";
-import type { ClubCoach } from "@/lib/supabase/queries";
+import type { BoardColors, ClubCoach } from "@/lib/supabase/queries";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -11,10 +11,12 @@ export function PlaysPageClient({
   plays,
   playDataMap,
   coachesByClub,
+  boardColors,
 }: {
   plays: { id: string; title: string; typeLabel: string; status: string; clubId: string }[];
   playDataMap: Record<string, LoopPlay>;
   coachesByClub?: Record<string, ClubCoach[]>;
+  boardColors: BoardColors;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loopPlayerOpen, setLoopPlayerOpen] = useState(false);
@@ -77,6 +79,10 @@ export function PlaysPageClient({
         <PlayLoopPlayer
           plays={loopPlays}
           startIndex={loopStartIndex}
+          homeColor={boardColors.homeColor}
+          awayColor={boardColors.awayColor}
+          courtColor={boardColors.courtColor}
+          logoUrl={boardColors.logoUrl}
           onClose={() => setLoopPlayerOpen(false)}
         />
       )}
