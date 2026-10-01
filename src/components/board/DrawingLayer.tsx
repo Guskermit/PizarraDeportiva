@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
-import { Rect, Shape, Line, Circle, Group } from "react-konva";
-import type Konva from "konva";
 import type { BoardPoint } from "@/lib/supabase/database.types";
-import { COURT_HEIGHT, COURT_WIDTH } from "@/lib/futsal/formations";
+import type Konva from "konva";
+import React from "react";
+import { Circle, Group, Line } from "react-konva";
 
 export type PencilTool =
   | "pointer"
@@ -113,55 +112,12 @@ function StrokeRenderer({
   }
 }
 
-/** Eraser hit area – invisible shape that captures clicks to delete a stroke. */
-function EraserHitArea({
-  stroke,
-  onErase,
-}: {
-  stroke: DrawingStroke;
-  onErase: (id: string) => void;
-}) {
-  if (stroke.tool === "player-marker" || stroke.tool === "ball-marker") {
-    if (!stroke.position) return null;
-    return (
-      <Circle
-        x={stroke.position.x}
-        y={stroke.position.y}
-        radius={10}
-        fill="transparent"
-        onMouseDown={(e) => {
-          e.cancelBubble = true;
-          onErase(stroke.id);
-        }}
-      />
-    );
-  }
-  if (stroke.points.length < 2) return null;
-  const flat = stroke.points.flatMap((p) => [p.x, p.y]);
-  return (
-    <Line
-      points={flat}
-      stroke="transparent"
-      strokeWidth={Math.max(stroke.width + 8, 12)}
-      hitStrokeWidth={Math.max(stroke.width + 8, 12)}
-      onMouseDown={(e) => {
-        e.cancelBubble = true;
-        onErase(stroke.id);
-      }}
-    />
-  );
-}
-
 export interface DrawingLayerProps {
   strokes: DrawingStroke[];
   activeTool: PencilTool;
   tempLine?: { from: BoardPoint; to: BoardPoint } | null;
   tempFreehand?: BoardPoint[] | null;
-  onEraseStroke: (id: string) => void;
   onStrokePositionChange?: (id: string, pos: BoardPoint) => void;
-  onPointerDown?: (e: any) => void;
-  onPointerMove?: (e: any) => void;
-  onPointerUp?: (e: any) => void;
 }
 
 export function DrawingLayer({
@@ -169,11 +125,7 @@ export function DrawingLayer({
   activeTool,
   tempLine,
   tempFreehand,
-  onEraseStroke,
   onStrokePositionChange,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
 }: DrawingLayerProps) {
   return (
     <>
@@ -209,33 +161,6 @@ export function DrawingLayer({
           lineJoin="round"
           tension={0.4}
           listening={false}
-        />
-      )}
-
-      {/* Eraser hit areas */}
-      {activeTool === "eraser" &&
-        strokes.map((stroke) => (
-          <EraserHitArea
-            key={`eraser-${stroke.id}`}
-            stroke={stroke}
-            onErase={onEraseStroke}
-          />
-        ))}
-
-      {/* Transparent full-court hit area for drawing events – not needed for pointer */}
-      {activeTool !== "eraser" && activeTool !== "pointer" && (
-        <Rect
-          x={0}
-          y={0}
-          width={COURT_WIDTH}
-          height={COURT_HEIGHT}
-          fill="transparent"
-          onMouseDown={onPointerDown}
-          onMouseMove={onPointerMove}
-          onMouseUp={onPointerUp}
-          onTouchStart={onPointerDown}
-          onTouchMove={onPointerMove}
-          onTouchEnd={onPointerUp}
         />
       )}
     </>

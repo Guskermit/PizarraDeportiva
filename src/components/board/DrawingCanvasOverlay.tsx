@@ -1,14 +1,23 @@
 "use client";
 
-import React from "react";
-import type { BoardPoint } from "@/lib/supabase/database.types";
-import type { PencilTool, DrawingStroke } from "@/components/board/DrawingLayer";
+import type { DrawingStroke, PencilTool } from "@/components/board/DrawingLayer";
+import { findStrokeAt } from "@/components/board/strokeHit";
 import { COURT_HEIGHT, COURT_WIDTH, GOAL_DEPTH } from "@/lib/futsal/formations";
+import type { BoardPoint } from "@/lib/supabase/database.types";
+import React from "react";
 
 const COURT_TOTAL_W = COURT_WIDTH + GOAL_DEPTH * 2;
 
 function strokeId(): string {
   return `stroke-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function safeScale(scale: number): number {
+  return scale > 0 && Number.isFinite(scale) ? scale : 1;
 }
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: DrawingStroke) {
@@ -109,11 +118,13 @@ export function DrawingCanvasOverlay({
   const drawingRef = React.useRef(false);
   const currentPoints = React.useRef<BoardPoint[]>([]);
   const tempStroke = React.useRef<DrawingStroke | null>(null);
+  const activePointerId = React.useRef<number | null>(null);
+  const erasedIds = React.useRef<Set<string>>(new Set());
 
-  // Drag state for markers (pixel coords to match drawing coordinates)
+  // Drag state for markers (world coords, same space as stroke positions)
   const dragRef = React.useRef<{
     strokeId: string;
-    startPixel: BoardPoint;
+    startWorld: BoardPoint;
     startPos: BoardPoint;
   } | null>(null);
 
@@ -121,135 +132,120 @@ export function DrawingCanvasOverlay({
   const canvasW = Math.round(COURT_TOTAL_W * scale);
   const canvasH = Math.round(COURT_HEIGHT * scale);
 
+  /**
+   * Prepare the context for drawing in world units: the transform maps one
+   * world unit to `scale` CSS pixels and then to device pixels (DPR).
+   * Without the scale factor strokes are drawn at the wrong position
+   * whenever the board is not rendered 1:1.
+   */
+  function beginDraw(): CanvasRenderingContext2D | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const s = safeScale(scale);
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+    ctx.clearRect(0, 0, COURT_TOTAL_W, COURT_HEIGHT);
+    return ctx;
+  }
+
+  function paint() {
+    const ctx = beginDraw();
+    if (!ctx) return;
+    for (const stroke of strokes) drawStroke(ctx, stroke);
+    if (tempStroke.current) drawStroke(ctx, tempStroke.current);
+  }
+
   // Redraw canvas whenever strokes change
   React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const bitmapW = Math.max(1, Math.round(canvasW * dpr));
+    const bitmapH = Math.max(1, Math.round(canvasH * dpr));
+    if (canvas.width !== bitmapW) canvas.width = bitmapW;
+    if (canvas.height !== bitmapH) canvas.height = bitmapH;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    // Set canvas internal resolution to match CSS size
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = canvasW * dpr;
-    canvas.height = canvasH * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Clear
-    ctx.clearRect(0, 0, canvasW, canvasH);
-
-    // Draw all strokes
-    for (const stroke of strokes) {
-      drawStroke(ctx, stroke);
-    }
-
-    // Draw temp stroke
-    if (tempStroke.current) {
-      drawStroke(ctx, tempStroke.current);
-    }
-  }, [strokes, canvasW, canvasH]);
+    const s = safeScale(scale);
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+    ctx.clearRect(0, 0, COURT_TOTAL_W, COURT_HEIGHT);
+    for (const stroke of strokes) drawStroke(ctx, stroke);
+    if (tempStroke.current) drawStroke(ctx, tempStroke.current);
+  }, [strokes, canvasW, canvasH, scale]);
 
   function toWorld(clientX: number, clientY: number): BoardPoint {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    const s = safeScale(scale);
     return {
-      x: (clientX - rect.left) / scale,
-      y: (clientY - rect.top) / scale,
+      x: (clientX - rect.left) / s,
+      y: (clientY - rect.top) / s,
     };
   }
 
-  /** Return raw pixel coords relative to the canvas (matches drawing coordinates). */
-  function toPixel(clientX: number, clientY: number): BoardPoint {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
+  /** Start tracking this pointer. Ignores extra fingers (palm rejection / multi-touch). */
+  function trackPointer(e: React.PointerEvent<HTMLCanvasElement>): boolean {
+    if (activePointerId.current !== null || !e.isPrimary) return false;
+    activePointerId.current = e.pointerId;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture is best-effort; pointerleave still ends the stroke.
+    }
+    return true;
   }
 
-  function isHitStroke(stroke: DrawingStroke, world: BoardPoint): boolean {
-    const threshold = 0.15; // world units
-    if (stroke.tool === "player-marker" || stroke.tool === "ball-marker") {
-      if (!stroke.position) return false;
-      const dx = world.x - stroke.position.x;
-      const dy = world.y - stroke.position.y;
-      return Math.sqrt(dx * dx + dy * dy) < 10 / scale;
-    }
-    // For lines / freehand, check distance to any segment
-    for (let i = 1; i < stroke.points.length; i++) {
-      const a = stroke.points[i - 1];
-      const b = stroke.points[i];
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const lenSq = dx * dx + dy * dy;
-      if (lenSq === 0) continue;
-      let t = ((world.x - a.x) * dx + (world.y - a.y) * dy) / lenSq;
-      t = Math.max(0, Math.min(1, t));
-      const px = a.x + t * dx;
-      const py = a.y + t * dy;
-      const dist = Math.sqrt((world.x - px) ** 2 + (world.y - py) ** 2);
-      if (dist < (stroke.width + 6) / scale) return true;
-    }
-    return false;
+  function isTracking(e: React.PointerEvent<HTMLCanvasElement>): boolean {
+    return activePointerId.current === e.pointerId;
   }
 
-  function handlePointerDown(e: React.PointerEvent) {
+  function releasePointer(e: React.PointerEvent<HTMLCanvasElement>) {
+    activePointerId.current = null;
+    try {
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore: the pointer may already be gone.
+    }
+  }
+
+  function eraseAt(world: BoardPoint) {
+    const base = strokes.filter((s) => !erasedIds.current.has(s.id));
+    const hit = findStrokeAt(base, world, scale);
+    if (!hit) return;
+    erasedIds.current.add(hit.id);
+    onStrokesChange(base.filter((s) => s.id !== hit.id));
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!trackPointer(e)) return;
     const world = toWorld(e.clientX, e.clientY);
 
     if (activeTool === "eraser") {
-      // Find and erase the topmost stroke under the pointer
-      for (let i = strokes.length - 1; i >= 0; i--) {
-        if (isHitStroke(strokes[i], world)) {
-          onStrokesChange(strokes.filter((_, idx) => idx !== i));
-          return;
-        }
-      }
+      erasedIds.current = new Set();
+      eraseAt(world);
       return;
     }
+
+    const isMarkerTool = activeTool === "player-marker" || activeTool === "ball-marker";
 
     // Pointer tool: only drag existing markers, don't create new ones
-    if (activeTool === "pointer") {
-      const pixel = toPixel(e.clientX, e.clientY);
-      for (let i = strokes.length - 1; i >= 0; i--) {
-        const s = strokes[i];
-        if ((s.tool === "player-marker" || s.tool === "ball-marker") && s.position) {
-          const dx = pixel.x - s.position.x;
-          const dy = pixel.y - s.position.y;
-          if (Math.sqrt(dx * dx + dy * dy) < 10) {
-            (e.target as HTMLElement).setPointerCapture(e.pointerId);
-            dragRef.current = {
-              strokeId: s.id,
-              startPixel: pixel,
-              startPos: { ...s.position },
-            };
-            return;
-          }
-        }
+    // Marker tools: drag an existing marker when tapping on it, otherwise create a new one
+    if (activeTool === "pointer" || isMarkerTool) {
+      const hit = findStrokeAt(strokes, world, scale, { markersOnly: true });
+      if (hit?.position) {
+        dragRef.current = {
+          strokeId: hit.id,
+          startWorld: world,
+          startPos: { ...hit.position },
+        };
+        return;
       }
-      return;
-    }
-
-    // Marker tools: check if clicking on an existing marker to drag it, otherwise create new
-    if (activeTool === "player-marker" || activeTool === "ball-marker") {
-      const pixel = toPixel(e.clientX, e.clientY);
-      for (let i = strokes.length - 1; i >= 0; i--) {
-        const s = strokes[i];
-        if ((s.tool === "player-marker" || s.tool === "ball-marker") && s.position) {
-          const dx = pixel.x - s.position.x;
-          const dy = pixel.y - s.position.y;
-          if (Math.sqrt(dx * dx + dy * dy) < 10) {
-            (e.target as HTMLElement).setPointerCapture(e.pointerId);
-            dragRef.current = {
-              strokeId: s.id,
-              startPixel: pixel,
-              startPos: { ...s.position },
-            };
-            return;
-          }
-        }
-      }
-    }
-
-    if (activeTool === "player-marker" || activeTool === "ball-marker") {
+      if (activeTool === "pointer") return;
       onStrokesChange([
         ...strokes,
         {
@@ -276,17 +272,22 @@ export function DrawingCanvasOverlay({
     };
   }
 
-  function handlePointerMove(e: React.PointerEvent) {
-    // Handle marker drag (pixel coords → world coords for state)
+  function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!isTracking(e)) return;
+
+    // Handle marker drag (world coords → world coords for state)
     if (dragRef.current && onStrokePositionChange) {
-      const pixel = toPixel(e.clientX, e.clientY);
-      const dx = (pixel.x - dragRef.current.startPixel.x) / scale;
-      const dy = (pixel.y - dragRef.current.startPixel.y) / scale;
-      const newPos = {
-        x: Math.max(0, Math.min(COURT_TOTAL_W, dragRef.current.startPos.x + dx)),
-        y: Math.max(0, Math.min(COURT_HEIGHT, dragRef.current.startPos.y + dy)),
-      };
-      onStrokePositionChange(dragRef.current.strokeId, newPos);
+      const world = toWorld(e.clientX, e.clientY);
+      const drag = dragRef.current;
+      onStrokePositionChange(drag.strokeId, {
+        x: clamp(drag.startPos.x + (world.x - drag.startWorld.x), 0, COURT_TOTAL_W),
+        y: clamp(drag.startPos.y + (world.y - drag.startWorld.y), 0, COURT_HEIGHT),
+      });
+      return;
+    }
+
+    if (activeTool === "eraser") {
+      eraseAt(toWorld(e.clientX, e.clientY));
       return;
     }
 
@@ -296,23 +297,15 @@ export function DrawingCanvasOverlay({
 
     if (tempStroke.current) {
       tempStroke.current.points = [...currentPoints.current];
-      // Redraw to show temp
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const dpr = window.devicePixelRatio || 1;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          ctx.clearRect(0, 0, canvasW, canvasH);
-          for (const stroke of strokes) drawStroke(ctx, stroke);
-          if (tempStroke.current) drawStroke(ctx, tempStroke.current);
-        }
-      }
+      paint();
     }
   }
 
-  function handlePointerUp() {
+  function handlePointerEnd(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!isTracking(e)) return;
+    releasePointer(e);
     dragRef.current = null;
+    erasedIds.current = new Set();
 
     if (!drawingRef.current) return;
     drawingRef.current = false;
@@ -369,8 +362,9 @@ export function DrawingCanvasOverlay({
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
     />
   );
 }
