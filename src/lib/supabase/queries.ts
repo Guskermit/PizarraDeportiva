@@ -9,6 +9,29 @@ export async function getCurrentUser() {
   return user;
 }
 
+// Staff = admin del club o entrenador de algún equipo. Los jugadores no lo son:
+// no deben ver Biblioteca ni Situaciones.
+export async function isStaff(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const [{ count: coachCount }, { count: adminCount }] = await Promise.all([
+    supabase
+      .from("team_coaches")
+      .select("team_id", { count: "exact", head: true })
+      .eq("profile_id", user.id),
+    supabase
+      .from("club_admins")
+      .select("club_id", { count: "exact", head: true })
+      .eq("profile_id", user.id),
+  ]);
+
+  return (coachCount ?? 0) > 0 || (adminCount ?? 0) > 0;
+}
+
 // Super_admin (nivel plataforma): gestiona el panel de control y la plataforma.
 export async function isSuperAdmin(): Promise<boolean> {
   const supabase = await createClient();
@@ -85,7 +108,8 @@ export async function getBoardColors(): Promise<BoardColors> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
+  if (!user)
+    return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
 
   const { data: adminMembership } = await adminSupabase
     .from("club_admins")
@@ -130,7 +154,8 @@ export async function getBoardColors(): Promise<BoardColors> {
       : undefined;
   }
 
-  if (!clubId) return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
+  if (!clubId)
+    return { homeColor: "#1d4ed8", awayColor: "#f97316", courtColor: "#15803d", logoUrl: null };
   const { data: club } = await adminSupabase
     .from("clubs")
     .select("primary_color, secondary_color, court_color, logo_url")
@@ -175,4 +200,35 @@ export async function getClubCoaches(clubId: string): Promise<ClubCoach[]> {
     if (row.profiles) map.set(row.profiles.id, row.profiles);
   }
   return [...map.values()];
+}
+
+export type TeamOption = {
+  id: string;
+  label: string;
+};
+
+// Lista pública de equipos (con su club) para los formularios de alta/solicitud
+// de jugadores. Usa el cliente admin porque el usuario aún no es miembro de
+// ningún club y las políticas RLS no le dejarían leer los equipos.
+export async function getTeamOptionsForRegistration(): Promise<TeamOption[]> {
+  const supabase = createAdminClient();
+
+  const { data } = await supabase
+    .from("teams")
+    .select("id, name, category, clubs(name)")
+    .order("name");
+
+  return (
+    (data ?? []) as unknown as {
+      id: string;
+      name: string;
+      category: string | null;
+      clubs: { name: string } | null;
+    }[]
+  ).map((team) => ({
+    id: team.id,
+    label: team.clubs
+      ? `${team.clubs.name} — ${team.name}${team.category ? ` (${team.category})` : ""}`
+      : `${team.name}${team.category ? ` (${team.category})` : ""}`,
+  }));
 }

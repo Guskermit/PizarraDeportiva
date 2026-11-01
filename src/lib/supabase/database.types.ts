@@ -16,6 +16,8 @@ export type TeamFormation = "portero_4_jugadores" | "5_jugadores" | "portero_3_j
 
 export type PlayStatus = "draft" | "ready";
 
+export type RegistrationStatus = "pending" | "approved" | "rejected";
+
 export type Difficulty = 1 | 2 | 3 | 4 | 5;
 
 export interface BoardPoint {
@@ -275,6 +277,23 @@ export interface Database {
         };
         Insert: { team_id: string; catalog_id: string; assigned_by: string };
         Update: Partial<Database["public"]["Tables"]["team_catalogs"]["Row"]>;
+        Relationships: [];
+      };
+      player_registrations: {
+        Row: {
+          id: string;
+          team_id: string;
+          profile_id: string;
+          status: RegistrationStatus;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["player_registrations"]["Row"]> & {
+          team_id: string;
+          profile_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["player_registrations"]["Row"]>;
         Relationships: [];
       };
     };

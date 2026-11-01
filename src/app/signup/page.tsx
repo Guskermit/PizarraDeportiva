@@ -43,10 +43,18 @@ export default function SignupPage() {
               </SubmitButton>
             </div>
           </ActionForm>
-          <div className="mt-6 flex justify-center gap-1.5 text-sm text-muted-foreground">
-            <span>¿Ya tienes cuenta?</span>
-            <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
-              Inicia sesión
+          <div className="mt-6 flex flex-col items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex gap-1.5">
+              <span>¿Ya tienes cuenta?</span>
+              <Link href="/login" className="text-foreground underline-offset-4 hover:underline">
+                Inicia sesión
+              </Link>
+            </div>
+            <Link
+              href="/register-player"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              ¿Eres jugador? Regístrate en un equipo
             </Link>
           </div>
         </CardContent>
@@ -54,4 +62,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

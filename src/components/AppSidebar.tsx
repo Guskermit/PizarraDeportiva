@@ -19,13 +19,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { getInitials, cn } from "@/lib/utils";
 import { logout } from "@/lib/actions/auth";
 import { SubmitButton } from "@/components/forms/SubmitButton";
@@ -48,7 +42,7 @@ function ClubBrand({
     <div
       className={cn(
         "relative flex items-center gap-2 py-3",
-        collapsed ? "justify-center px-0" : "px-2"
+        collapsed ? "justify-center px-0" : "px-2",
       )}
     >
       {clubLogoUrl ? (
@@ -84,7 +78,7 @@ function ClubBrand({
           className={cn(
             "shrink-0",
             collapsed &&
-              "absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border bg-sidebar shadow-sm"
+              "absolute -right-3 top-1/2 z-10 -translate-y-1/2 rounded-full border bg-sidebar shadow-sm",
           )}
         >
           {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
@@ -137,7 +131,7 @@ function SidebarContent({
                 collapsed && "justify-center px-0",
                 active
                   ? "bg-primary/10 font-medium text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {active && !collapsed && (
@@ -151,7 +145,9 @@ function SidebarContent({
       </nav>
 
       <div className={cn("flex flex-col gap-3 border-t pt-4", collapsed && "items-center")}>
-        <div className={cn("flex items-center gap-2", collapsed ? "flex-col" : "justify-between px-2")}>
+        <div
+          className={cn("flex items-center gap-2", collapsed ? "flex-col" : "justify-between px-2")}
+        >
           {userName && !collapsed && (
             <div className="flex min-w-0 items-center gap-2">
               <Avatar size="sm">
@@ -183,11 +179,13 @@ export function AppSidebar({
   clubLogoUrl,
   userName,
   isClubAdmin,
+  isStaff,
 }: {
   clubName?: string;
   clubLogoUrl?: string | null;
   userName?: string | null;
   isClubAdmin?: boolean;
+  isStaff?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -209,9 +207,11 @@ export function AppSidebar({
     { href: "/dashboard", label: "Panel", icon: LayoutDashboard },
     ...(isClubAdmin ? [{ href: "/club", label: "Club", icon: ShieldCheck }] : []),
     { href: "/board", label: "Pizarra libre", icon: PenLine },
-    { href: "/situations", label: "Situaciones", icon: Save },
+    // Situaciones y Biblioteca son herramientas de entrenadores/admins: no se
+    // muestran a los jugadores.
+    ...(isStaff ? [{ href: "/situations", label: "Situaciones", icon: Save }] : []),
     { href: "/plays", label: "Jugadas", icon: ClipboardList },
-    { href: "/library", label: "Biblioteca", icon: BookOpen },
+    ...(isStaff ? [{ href: "/library", label: "Biblioteca", icon: BookOpen }] : []),
     ...(isClubAdmin ? [{ href: "/catalogs", label: "Catálogos", icon: FolderOpen }] : []),
   ];
 
@@ -221,7 +221,7 @@ export function AppSidebar({
       <aside
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col gap-2 border-r bg-sidebar transition-[width] duration-200 md:flex",
-          collapsed ? "w-16 p-2" : "w-64 p-4"
+          collapsed ? "w-16 p-2" : "w-64 p-4",
         )}
       >
         <SidebarContent
@@ -239,9 +239,7 @@ export function AppSidebar({
       <div className="sticky top-0 z-40 flex items-center justify-between border-b bg-card p-2 md:hidden">
         <ClubBrand clubName={clubName} clubLogoUrl={clubLogoUrl} />
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger
-            render={<Button variant="ghost" size="icon" aria-label="Abrir menú" />}
-          >
+          <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Abrir menú" />}>
             <Menu />
           </SheetTrigger>
           <SheetContent side="left" className="p-4">
@@ -262,5 +260,3 @@ export function AppSidebar({
     </>
   );
 }
-
-

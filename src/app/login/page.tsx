@@ -44,7 +44,16 @@ export default function LoginPage() {
                 Regístrate
               </Link>
             </div>
-            <Link href="/register-club" className="text-foreground underline-offset-4 hover:underline">
+            <Link
+              href="/register-player"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
+              ¿Eres jugador? Regístrate en un equipo
+            </Link>
+            <Link
+              href="/register-club"
+              className="text-foreground underline-offset-4 hover:underline"
+            >
               Dar de alta un nuevo club
             </Link>
           </div>
@@ -53,4 +62,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

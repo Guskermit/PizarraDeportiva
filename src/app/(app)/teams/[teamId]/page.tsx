@@ -3,6 +3,10 @@ import { addCoachByEmail, addPlayerByEmail, removeCoach, removePlayer } from "@/
 import { ActionForm } from "@/components/forms/ActionForm";
 import { SubmitButton } from "@/components/forms/SubmitButton";
 import { TeamCatalogsSection, type CatalogInfo } from "@/components/club/TeamCatalogsSection";
+import {
+  PendingRegistrationsCard,
+  type PendingRegistration,
+} from "@/components/club/PendingRegistrationsCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +25,7 @@ export default async function TeamDetailPage({
     .eq("id", teamId)
     .single();
 
-  const [{ data: coachesRaw }, { data: playersRaw }] = await Promise.all([
+  const [{ data: coachesRaw }, { data: playersRaw }, { data: pendingRaw }] = await Promise.all([
     supabase
       .from("team_coaches")
       .select("profile_id, profiles(id, full_name, email)")
@@ -30,6 +34,13 @@ export default async function TeamDetailPage({
       .from("team_players")
       .select("profile_id, jersey_number, profiles(id, full_name, email)")
       .eq("team_id", teamId),
+    supabase
+      .from("player_registrations")
+      // Hint: dos FK a profiles (profile_id y reviewed_by) hacen el embed ambiguo (PGRST201).
+      .select("id, created_at, profiles!player_registrations_profile_id_fkey(full_name, email)")
+      .eq("team_id", teamId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
   ]);
 
   if (!team) {
@@ -46,17 +57,12 @@ export default async function TeamDetailPage({
         profiles: { id: string; full_name: string; email: string };
       }[]
     | null;
+  const pendingRegistrations = (pendingRaw ?? []) as unknown as PendingRegistration[];
 
   // Fetch catalogs for this team.
   const [{ data: assignedRaw }, { data: allCatalogsRaw }] = await Promise.all([
-    supabase
-      .from("team_catalogs")
-      .select("catalog_id")
-      .eq("team_id", teamId),
-    supabase
-      .from("play_catalogs")
-      .select("id, name, description")
-      .eq("club_id", team.club_id),
+    supabase.from("team_catalogs").select("catalog_id").eq("team_id", teamId),
+    supabase.from("play_catalogs").select("id, name, description").eq("club_id", team.club_id),
   ]);
 
   const assignedIds = (assignedRaw ?? []).map((tc) => tc.catalog_id);
@@ -180,6 +186,8 @@ export default async function TeamDetailPage({
         </Card>
       </div>
 
+      <PendingRegistrationsCard registrations={pendingRegistrations} />
+
       <Card>
         <CardHeader>
           <CardTitle>Catálogos de jugadas</CardTitle>
@@ -195,4 +203,3 @@ export default async function TeamDetailPage({
     </div>
   );
 }
-

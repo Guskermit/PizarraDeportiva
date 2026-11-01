@@ -15,6 +15,10 @@ import { CoachRoleSelect } from "@/components/club/CoachRoleSelect";
 import { CoachesCard } from "@/components/club/CoachesCard";
 import { TeamsCard } from "@/components/club/TeamsCard";
 import { PlayersCard } from "@/components/club/PlayersCard";
+import {
+  PendingRegistrationsCard,
+  type PendingRegistration,
+} from "@/components/club/PendingRegistrationsCard";
 import { ClubEditSection } from "@/components/club/ClubEditSection";
 import { FlatTable } from "@/components/FlatTable";
 import { Badge } from "@/components/ui/badge";
@@ -48,19 +52,17 @@ export default async function ClubPage() {
     .limit(1)
     .maybeSingle();
 
-  const admin = adminRaw as unknown as
-    | {
-        role: string;
-        clubs: {
-          id: string;
-          name: string;
-          logo_url: string | null;
-          primary_color: string;
-          secondary_color: string;
-          court_color: string;
-        };
-      }
-    | null;
+  const admin = adminRaw as unknown as {
+    role: string;
+    clubs: {
+      id: string;
+      name: string;
+      logo_url: string | null;
+      primary_color: string;
+      secondary_color: string;
+      court_color: string;
+    };
+  } | null;
 
   // The club window is visible to all club admins (owner or admin).
   if (!admin) redirect("/dashboard");
@@ -94,6 +96,7 @@ export default async function ClubPage() {
     { data: teamCoachesCountRaw },
     { data: teamPlayersCountRaw },
     { data: teamPlayersRaw },
+    { data: pendingRegsRaw },
   ] = await Promise.all([
     supabase
       .from("club_admins")
@@ -118,7 +121,19 @@ export default async function ClubPage() {
         "profile_id, jersey_number, profiles(id, full_name, email, avatar_url), teams!inner(id, name)",
       )
       .eq("teams.club_id", club.id),
+    supabase
+      .from("player_registrations")
+      // La tabla tiene dos FK a profiles (profile_id y reviewed_by): el hint
+      // desambigua el embed, si no PostgREST falla con PGRST201.
+      .select(
+        "id, created_at, profiles!player_registrations_profile_id_fkey(full_name, email), teams!inner(name)",
+      )
+      .eq("teams.club_id", club.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
   ]);
+
+  const pendingRegistrations = (pendingRegsRaw ?? []) as unknown as PendingRegistration[];
 
   // Los entrenadores del club son los admins del club más los entrenadores de sus
   // equipos. Los admins tienen prioridad (conservan rol y estado de bloqueo).
@@ -198,6 +213,8 @@ export default async function ClubPage() {
         onSuccessMessage="Club actualizado."
       />
 
+      <PendingRegistrationsCard registrations={pendingRegistrations} />
+
       <CoachesCard
         action={addClubCoach.bind(null, club.id)}
         canManage={isOwner}
@@ -213,108 +230,105 @@ export default async function ClubPage() {
           ]}
           searchPlaceholder="Buscar entrenadores..."
           emptyMessage="Aún no hay entrenadores en el club."
-            rows={coaches.map((c) => {
-              const profile = c.profiles;
-              const isSelf = profile.id === user!.id;
-              const assignedTeams = coachTeamMap.get(c.profile_id) ?? [];
-              return {
-                id: c.profile_id,
-                searchText: `${profile.full_name} ${profile.email} ${roleLabel(
-                  c.role,
-                )} ${c.is_blocked ? "bloqueado" : ""}`,
-                cells: [
-                  <div key="coach" className="flex items-center gap-3">
-                    <Avatar size="sm">
-                      {profile.avatar_url && (
-                        <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                      )}
-                      <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{profile.full_name}</span>
-                      {isSelf && <Badge variant="secondary">Tú</Badge>}
-                      {c.is_blocked && <Badge variant="destructive">Bloqueado</Badge>}
-                    </div>
-                  </div>,
-                  <span key="email" className="text-muted-foreground">
-                    {profile.email}
-                  </span>,
-                  <span key="role">
-                    {isOwner && !isSelf ? (
-                      <CoachRoleSelect
-                        clubId={club.id}
-                        profileId={c.profile_id}
-                        role={c.role as ClubAdminRole}
-                      />
-                    ) : (
-                      <RoleBadge role={c.role} />
+          rows={coaches.map((c) => {
+            const profile = c.profiles;
+            const isSelf = profile.id === user!.id;
+            const assignedTeams = coachTeamMap.get(c.profile_id) ?? [];
+            return {
+              id: c.profile_id,
+              searchText: `${profile.full_name} ${profile.email} ${roleLabel(
+                c.role,
+              )} ${c.is_blocked ? "bloqueado" : ""}`,
+              cells: [
+                <div key="coach" className="flex items-center gap-3">
+                  <Avatar size="sm">
+                    {profile.avatar_url && (
+                      <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
                     )}
-                  </span>,
-                  <div key="teams" className="min-w-40">
-                    {isOwner ? (
-                      <CoachTeamsEditor
-                        clubId={club.id}
-                        profileId={c.profile_id}
-                        teams={teams}
-                        assignedTeamIds={assignedTeams}
-                      />
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {assignedTeams.length === 0 ? (
-                          <span className="text-sm text-muted-foreground">Sin equipos</span>
-                        ) : (
-                          assignedTeams.map((teamId) => {
-                            const team = teams.find((t) => t.id === teamId);
-                            return team ? (
-                              <Badge key={teamId} variant="outline">
-                                {team.name}
-                              </Badge>
-                            ) : null;
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>,
-                  isOwner && !isSelf ? (
-                    <div key="actions" className="flex items-center gap-1">
-                      <form
-                        action={setClubCoachBlocked.bind(null, club.id, c.profile_id, !c.is_blocked)}
-                      >
-                        <SubmitButton
-                          variant="ghost"
-                          size="icon-sm"
-                          title={c.is_blocked ? "Desbloquear" : "Bloquear"}
-                          aria-label={c.is_blocked ? "Desbloquear" : "Bloquear"}
-                        >
-                          {c.is_blocked ? <Unlock /> : <Ban />}
-                        </SubmitButton>
-                      </form>
-                      <form action={removeClubCoach.bind(null, club.id, c.profile_id)}>
-                        <SubmitButton
-                          variant="ghost"
-                          size="icon-sm"
-                          title="Eliminar"
-                          aria-label="Eliminar"
-                        >
-                          <Trash2 />
-                        </SubmitButton>
-                      </form>
-                    </div>
+                    <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{profile.full_name}</span>
+                    {isSelf && <Badge variant="secondary">Tú</Badge>}
+                    {c.is_blocked && <Badge variant="destructive">Bloqueado</Badge>}
+                  </div>
+                </div>,
+                <span key="email" className="text-muted-foreground">
+                  {profile.email}
+                </span>,
+                <span key="role">
+                  {isOwner && !isSelf ? (
+                    <CoachRoleSelect
+                      clubId={club.id}
+                      profileId={c.profile_id}
+                      role={c.role as ClubAdminRole}
+                    />
                   ) : (
-                    <span key="actions" className="text-sm text-muted-foreground">
-                      —
-                    </span>
-                  ),
-                ],
-              };
-            })}
-          />
+                    <RoleBadge role={c.role} />
+                  )}
+                </span>,
+                <div key="teams" className="min-w-40">
+                  {isOwner ? (
+                    <CoachTeamsEditor
+                      clubId={club.id}
+                      profileId={c.profile_id}
+                      teams={teams}
+                      assignedTeamIds={assignedTeams}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {assignedTeams.length === 0 ? (
+                        <span className="text-sm text-muted-foreground">Sin equipos</span>
+                      ) : (
+                        assignedTeams.map((teamId) => {
+                          const team = teams.find((t) => t.id === teamId);
+                          return team ? (
+                            <Badge key={teamId} variant="outline">
+                              {team.name}
+                            </Badge>
+                          ) : null;
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>,
+                isOwner && !isSelf ? (
+                  <div key="actions" className="flex items-center gap-1">
+                    <form
+                      action={setClubCoachBlocked.bind(null, club.id, c.profile_id, !c.is_blocked)}
+                    >
+                      <SubmitButton
+                        variant="ghost"
+                        size="icon-sm"
+                        title={c.is_blocked ? "Desbloquear" : "Bloquear"}
+                        aria-label={c.is_blocked ? "Desbloquear" : "Bloquear"}
+                      >
+                        {c.is_blocked ? <Unlock /> : <Ban />}
+                      </SubmitButton>
+                    </form>
+                    <form action={removeClubCoach.bind(null, club.id, c.profile_id)}>
+                      <SubmitButton
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Eliminar"
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 />
+                      </SubmitButton>
+                    </form>
+                  </div>
+                ) : (
+                  <span key="actions" className="text-sm text-muted-foreground">
+                    —
+                  </span>
+                ),
+              ],
+            };
+          })}
+        />
       </CoachesCard>
 
-      <TeamsCard
-        action={createTeam.bind(null, club.id)}
-        onSuccessMessage="Equipo creado."
-      >
+      <TeamsCard action={createTeam.bind(null, club.id)} onSuccessMessage="Equipo creado.">
         <FlatTable
           columns={[
             { key: "team", label: "Equipo" },
@@ -402,4 +416,3 @@ export default async function ClubPage() {
     </div>
   );
 }
-

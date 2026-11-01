@@ -6,9 +6,11 @@ import {
   ClipboardList,
   TrendingUp,
   TrendingDown,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,14 +40,16 @@ function StatCard({
   const content = (
     <CardContent className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div className={cn("flex size-10 items-center justify-center rounded-lg", colorClasses[color])}>
+        <div
+          className={cn("flex size-10 items-center justify-center rounded-lg", colorClasses[color])}
+        >
           <Icon className="size-5" />
         </div>
         {trend !== undefined && (
           <span
             className={cn(
               "flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-              up ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive"
+              up ? "bg-emerald-500/10 text-emerald-500" : "bg-destructive/10 text-destructive",
             )}
           >
             {up ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
@@ -71,11 +75,7 @@ function StatCard({
     );
   }
 
-  return (
-    <Card className="card-glow min-w-0 flex-1 sm:min-w-48">
-      {content}
-    </Card>
-  );
+  return <Card className="card-glow min-w-0 flex-1 sm:min-w-48">{content}</Card>;
 }
 
 async function ClubStats({ clubId }: { clubId: string }) {
@@ -133,7 +133,13 @@ async function ClubStats({ clubId }: { clubId: string }) {
   return (
     <div className="grid w-full gap-4">
       <div className="flex flex-wrap gap-4">
-        <StatCard icon={Users} label="Equipos" value={teamCount ?? 0} color="primary" href="/club" />
+        <StatCard
+          icon={Users}
+          label="Equipos"
+          value={teamCount ?? 0}
+          color="primary"
+          href="/club"
+        />
         <StatCard
           icon={ClipboardList}
           label="Jugadas totales"
@@ -194,21 +200,29 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: adminClubsRaw }, { data: coachTeamsRaw }, { data: playerTeamsRaw }] =
-    await Promise.all([
-      supabase
-        .from("club_admins")
-        .select("role, clubs(id, name, logo_url)")
-        .eq("profile_id", user!.id),
-      supabase
-        .from("team_coaches")
-        .select("teams(id, name, category, club_id)")
-        .eq("profile_id", user!.id),
-      supabase
-        .from("team_players")
-        .select("teams(id, name, category)")
-        .eq("profile_id", user!.id),
-    ]);
+  const adminClient = createAdminClient();
+  const [
+    { data: adminClubsRaw },
+    { data: coachTeamsRaw },
+    { data: playerTeamsRaw },
+    { data: pendingRegsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("club_admins")
+      .select("role, clubs(id, name, logo_url)")
+      .eq("profile_id", user!.id),
+    supabase
+      .from("team_coaches")
+      .select("teams(id, name, category, club_id)")
+      .eq("profile_id", user!.id),
+    supabase.from("team_players").select("teams(id, name, category)").eq("profile_id", user!.id),
+    // Cliente admin: el jugador pendiente aún no puede leer los equipos por RLS.
+    adminClient
+      .from("player_registrations")
+      .select("id, status, teams(name)")
+      .eq("profile_id", user!.id)
+      .eq("status", "pending"),
+  ]);
 
   const adminClubs = adminClubsRaw as unknown as
     | { role: string; clubs: { id: string; name: string; logo_url: string | null } }[]
@@ -219,6 +233,10 @@ export default async function DashboardPage() {
   const playerTeams = playerTeamsRaw as unknown as
     | { teams: { id: string; name: string; category: string | null } }[]
     | null;
+  const pendingRegistrations = (pendingRegsRaw ?? []) as unknown as {
+    id: string;
+    teams: { name: string } | null;
+  }[];
 
   const isClubAdmin = (adminClubs?.length ?? 0) > 0;
   const isOwner = adminClubs?.[0]?.role === "owner";
@@ -232,6 +250,32 @@ export default async function DashboardPage() {
           Gestiona tu club, equipos y catálogo de jugadas de fútbol sala.
         </p>
       </div>
+
+      {pendingRegistrations.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <Clock className="mt-0.5 size-5 text-primary" />
+              <div className="grid gap-0.5">
+                <span className="font-medium">
+                  Tienes{" "}
+                  {pendingRegistrations.length === 1
+                    ? "una solicitud pendiente"
+                    : `${pendingRegistrations.length} solicitudes pendientes`}{" "}
+                  de aprobación.
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {pendingRegistrations.map((r) => r.teams?.name ?? "Equipo").join(", ")} — podrás
+                  ver las jugadas del equipo cuando el entrenador te apruebe.
+                </span>
+              </div>
+            </div>
+            <Button variant="secondary" size="sm" render={<Link href="/join-team" />}>
+              Ver mis solicitudes
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {isClubAdmin && (
         <div className="grid w-full gap-4">
@@ -278,7 +322,11 @@ export default async function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-4">
               {coachTeams!.map((t) => {
-                const team = t.teams as unknown as { id: string; name: string; category: string | null };
+                const team = t.teams as unknown as {
+                  id: string;
+                  name: string;
+                  category: string | null;
+                };
                 return (
                   <Link key={team.id} href={`/teams/${team.id}`}>
                     <Card className="min-w-0 sm:min-w-48">
@@ -327,10 +375,14 @@ export default async function DashboardPage() {
         <Card>
           <CardContent className="grid gap-3">
             <p>
-              Todavía no perteneces a ningún club. Pide a tu entrenador que te añada a un equipo, o
+              Todavía no perteneces a ningún equipo. Solicita unirte a uno con tu entrenador, o
               registra un nuevo club.
             </p>
-            <div>
+            <div className="flex flex-wrap gap-3">
+              <Button render={<Link href="/join-team" />}>
+                Unirme a un equipo
+                <ArrowRight />
+              </Button>
               <Button variant="secondary" render={<Link href="/register-club" />}>
                 Registrar club
               </Button>
@@ -341,4 +393,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

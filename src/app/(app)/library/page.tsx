@@ -3,16 +3,19 @@ import type { LibraryPlay } from "@/components/board/PlayLibraryTable";
 import { DIFFICULTY_LABELS } from "@/lib/futsal/formations";
 import type { Difficulty, PlayType } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { isStaff } from "@/lib/supabase/queries";
+import { redirect } from "next/navigation";
 import { BookOpen } from "lucide-react";
 
 export default async function LibraryPage() {
+  // Solo entrenadores y admins del club ven la biblioteca del club.
+  if (!(await isStaff())) redirect("/dashboard");
+
   const supabase = await createClient();
 
   const { data: plays } = await supabase
     .from("plays")
-    .select(
-      "id, title, play_type, difficulty, status, owner_coach_id, assigned_team_id",
-    )
+    .select("id, title, play_type, difficulty, status, owner_coach_id, assigned_team_id")
     .order("updated_at", { ascending: false });
 
   // Fetch owner names and team names in bulk.
@@ -24,7 +27,10 @@ export default async function LibraryPage() {
       ? supabase.from("profiles").select("id, full_name").in("id", ownerIds)
       : Promise.resolve({ data: [] as any[] }),
     teamIds.length > 0
-      ? supabase.from("teams").select("id, name").in("id", teamIds as string[])
+      ? supabase
+          .from("teams")
+          .select("id, name")
+          .in("id", teamIds as string[])
       : Promise.resolve({ data: [] as any[] }),
   ]);
 

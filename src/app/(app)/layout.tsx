@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) redirect("/login");
 
-  const [{ data: adminOfRaw }, { data: profileRaw }] = await Promise.all([
+  const [{ data: adminOfRaw }, { data: profileRaw }, { data: coachTeamsRaw }] = await Promise.all([
     supabase
       .from("club_admins")
       .select("role, clubs(name, logo_url, primary_color, secondary_color)")
@@ -22,23 +22,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .limit(1)
       .maybeSingle(),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("team_coaches").select("team_id").eq("profile_id", user.id),
   ]);
-  const adminOf = adminOfRaw as unknown as
-    | {
-        role: string;
-        clubs: {
-          name: string;
-          logo_url: string | null;
-          primary_color: string;
-          secondary_color: string;
-        };
-      }
-    | null;
+  const adminOf = adminOfRaw as unknown as {
+    role: string;
+    clubs: {
+      name: string;
+      logo_url: string | null;
+      primary_color: string;
+      secondary_color: string;
+    };
+  } | null;
   const profile = profileRaw as unknown as { full_name: string } | null;
 
   const clubName = adminOf?.clubs?.name;
   const clubLogoUrl = adminOf?.clubs?.logo_url;
   const isClubAdmin = !!adminOf;
+  // Staff = admin del club o entrenador de algún equipo: los jugadores no lo son.
+  const isStaff = isClubAdmin || (coachTeamsRaw?.length ?? 0) > 0;
   const brandVars = getBrandColorVars(
     adminOf?.clubs?.primary_color,
     adminOf?.clubs?.secondary_color,
@@ -54,6 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         clubLogoUrl={clubLogoUrl}
         userName={fullName}
         isClubAdmin={isClubAdmin}
+        isStaff={isStaff}
       />
       <div className="flex min-w-0 w-full flex-col overflow-x-hidden overflow-y-auto">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-background/80 px-4 py-3 backdrop-blur md:px-8">
@@ -75,4 +77,3 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-
